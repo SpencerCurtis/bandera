@@ -6,7 +6,7 @@ struct CreateUser: AsyncMigration {
             .id()
             .field("email", .string, .required)
             .field("password_hash", .string, .required)
-            .field("is_admin", .bool, .required, .sql(.default(false)))
+            .field("is_admin", .bool, .required, .custom("DEFAULT FALSE"))
             .field("created_at", .datetime)
             .unique(on: "email")
             .create()

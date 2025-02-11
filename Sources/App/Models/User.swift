@@ -1,7 +1,7 @@
 import Fluent
 import Vapor
 
-final class User: Model, Content, Authenticatable {
+final class User: Model, Content, SessionAuthenticatable, Authenticatable {
     static let schema = "users"
     
     @ID(key: .id)
@@ -27,37 +27,37 @@ final class User: Model, Content, Authenticatable {
         self.passwordHash = passwordHash
         self.isAdmin = isAdmin
     }
+    
+    // MARK: - SessionAuthenticatable
+    var sessionID: String {
+        id?.uuidString ?? ""
+    }
+    
+    // MARK: - Password Verification
+    func verify(password: String) throws -> Bool {
+        try Bcrypt.verify(password, created: self.passwordHash)
+    }
 }
 
-// MARK: - Registration and Authentication
+// MARK: - Create DTO
 extension User {
     struct Create: Content, Validatable {
         let email: String
         let password: String
-        let isAdmin: Bool?
+        let isAdmin: Bool
         
         static func validations(_ validations: inout Validations) {
             validations.add("email", as: String.self, is: .email)
-            validations.add("password", as: String.self, is: .count(8...) && .alphanumeric)
+            validations.add("password", as: String.self, is: .count(8...))
         }
     }
     
-    // Create a User from the registration data
-    static func create(from create: Create) throws -> User {
-        // Hash the password using Bcrypt
-        // Using try to make it synchronous since Bcrypt operations are CPU-bound
-        let hashedPassword = try Bcrypt.hash(create.password)
-        return User(
-            email: create.email,
-            passwordHash: hashedPassword,
-            isAdmin: create.isAdmin ?? false
+    static func create(from dto: Create) throws -> User {
+        User(
+            email: dto.email,
+            passwordHash: try Bcrypt.hash(dto.password),
+            isAdmin: dto.isAdmin
         )
-    }
-    
-    // Verify password
-    func verify(password: String) -> Bool {
-        // Using try? since we want to return false on any error
-        return (try? Bcrypt.verify(password, created: self.passwordHash)) ?? false
     }
 }
 

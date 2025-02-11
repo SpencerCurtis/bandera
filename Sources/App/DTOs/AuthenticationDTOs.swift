@@ -26,6 +26,11 @@ enum AuthenticationDTOs {
     }
 }
 
+struct LoginCredentials: Content {
+    let email: String
+    let password: String
+}
+
 // Extension to make the DTOs easily accessible
 extension AuthController {
     typealias DTOs = AuthenticationDTOs

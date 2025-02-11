@@ -47,6 +47,29 @@ final class FeatureFlag: Model, Content {
     }
 }
 
+// MARK: - DTOs
+extension FeatureFlag {
+    struct Create: Content, Validatable {
+        let key: String
+        let type: FeatureFlagType
+        let defaultValue: String
+        let description: String?
+        
+        static func validations(_ validations: inout Validations) {
+            validations.add("key", as: String.self, is: !.empty)
+            validations.add("defaultValue", as: String.self, is: !.empty)
+        }
+    }
+    
+    struct Update: Content {
+        var id: UUID?
+        let key: String
+        let type: FeatureFlagType
+        let defaultValue: String
+        let description: String?
+    }
+}
+
 // MARK: - Sendable Conformance
 extension FeatureFlag: @unchecked Sendable {
     // Fluent models are thread-safe by design when using property wrappers

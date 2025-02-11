@@ -1,7 +1,7 @@
 import JWT
 import Vapor
 
-struct UserJWTPayload: JWTPayload {
+struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
     // Constants for claim keys
     enum CodingKeys: String, CodingKey {
         case subject = "sub"
@@ -24,5 +24,10 @@ struct UserJWTPayload: JWTPayload {
     
     func verify(using signer: JWTSigner) throws {
         try self.expiration.verifyNotExpired()
+    }
+    
+    // MARK: - SessionAuthenticatable
+    var sessionID: String {
+        subject.value
     }
 } 

@@ -1,6 +1,5 @@
 import NIOSSL
 import Fluent
-import FluentPostgresDriver
 import FluentSQLiteDriver
 import Leaf
 import Vapor
@@ -12,20 +11,13 @@ public func configure(_ app: Application) async throws {
     // uncomment to serve files from /Public folder
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
 
-    // Configure database based on environment
-    switch app.environment {
-    case .testing:
-        app.databases.use(.sqlite(.memory), as: .sqlite)
-    default:
-        app.databases.use(DatabaseConfigurationFactory.postgres(configuration: .init(
-            hostname: Environment.get("DATABASE_HOST") ?? "localhost",
-            port: Environment.get("DATABASE_PORT").flatMap(Int.init(_:)) ?? SQLPostgresConfiguration.ianaPortNumber,
-            username: Environment.get("DATABASE_USERNAME") ?? "vapor_username",
-            password: Environment.get("DATABASE_PASSWORD") ?? "vapor_password",
-            database: Environment.get("DATABASE_NAME") ?? "vapor_database",
-            tls: .prefer(try .init(configuration: .clientDefault)))
-        ), as: .psql)
-    }
+    // Configure sessions
+    app.sessions.use(.memory)
+    app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
+    app.middleware.use(app.sessions.middleware)
+
+    // Configure database
+    app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
 
     // Configure Redis
     app.redis.configuration = try RedisConfiguration(
@@ -41,6 +33,11 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateUser())
     app.migrations.add(CreateFeatureFlag())
     app.migrations.add(CreateUserFeatureFlag())
+
+    // Add admin user in non-testing environments
+    if app.environment != .testing {
+        app.migrations.add(CreateAdminUser())
+    }
 
     try await app.autoMigrate()
     // Configure views

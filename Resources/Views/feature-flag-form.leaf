@@ -1,0 +1,62 @@
+#extend("layout"):
+    #export("content"):
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">
+                    #if(flag):
+                        Edit Feature Flag
+                    #else:
+                        Create Feature Flag
+                    #endif
+                </h3>
+            </div>
+            <div class="border-t border-gray-200">
+                <form method="POST" class="space-y-6 p-6">
+                    <div>
+                        <label for="key" class="block text-sm font-medium text-gray-700">Key</label>
+                        <input type="text" name="key" id="key" required 
+                            value="#(flag.key)" 
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            placeholder="new_feature_enabled">
+                    </div>
+
+                    <div>
+                        <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
+                        <select id="type" name="type" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="boolean" #if(flag.type == "boolean"): selected #endif>Boolean</option>
+                            <option value="string" #if(flag.type == "string"): selected #endif>String</option>
+                            <option value="number" #if(flag.type == "number"): selected #endif>Number</option>
+                            <option value="json" #if(flag.type == "json"): selected #endif>JSON</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="defaultValue" class="block text-sm font-medium text-gray-700">Default Value</label>
+                        <input type="text" name="defaultValue" id="defaultValue" required 
+                            value="#(flag.defaultValue)" 
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            placeholder="false">
+                    </div>
+
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="description" name="description" rows="3" 
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            placeholder="Describe what this feature flag controls">#(flag.description)</textarea>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <a href="/admin/dashboard" 
+                            class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    #endexport
+#endextend 
