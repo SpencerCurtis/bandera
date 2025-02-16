@@ -12,6 +12,11 @@ final class FeatureFlagControllerTests: XCTestCase {
         app = try await Application.make(.testing)
         try await configure(app)
         
+        // Clean up any existing data
+        try await User.query(on: app.db).delete()
+        try await FeatureFlag.query(on: app.db).delete()
+        try await UserFeatureFlag.query(on: app.db).delete()
+        
         // Create admin user and get token
         let adminUser = try User.create(from: .init(
             email: "admin@example.com",
@@ -34,6 +39,10 @@ final class FeatureFlagControllerTests: XCTestCase {
     }
     
     override func tearDown() async throws {
+        // Clean up the database
+        try await User.query(on: app.db).delete()
+        try await FeatureFlag.query(on: app.db).delete()
+        try await UserFeatureFlag.query(on: app.db).delete()
         try await app.asyncShutdown()
     }
     

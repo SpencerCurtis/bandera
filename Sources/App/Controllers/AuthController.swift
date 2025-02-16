@@ -37,7 +37,7 @@ struct AuthController: RouteCollection {
         }
         
         // Create new user
-        let user = try await User.create(from: create)
+        let user = try User.create(from: create)
         try await user.save(on: req.db)
         
         // Generate token
@@ -60,11 +60,19 @@ struct AuthController: RouteCollection {
             .filter(\.$email == credentials.email)
             .first() else {
             req.logger.debug("User not found: \(credentials.email)")
+            // Check if this is an API request
+            if req.headers.accept.first?.mediaType == .json {
+                throw Abort(.unauthorized, reason: "Invalid credentials")
+            }
             return req.redirect(to: "/auth/login?error=Invalid+credentials")
         }
         
         guard try user.verify(password: credentials.password) else {
             req.logger.debug("Invalid password for user: \(credentials.email)")
+            // Check if this is an API request
+            if req.headers.accept.first?.mediaType == .json {
+                throw Abort(.unauthorized, reason: "Invalid credentials")
+            }
             return req.redirect(to: "/auth/login?error=Invalid+credentials")
         }
         
@@ -76,7 +84,19 @@ struct AuthController: RouteCollection {
         
         req.logger.debug("Generated JWT token with payload: subject=\(payload.subject.value), isAdmin=\(payload.isAdmin)")
         
-        // Store the token in a secure, HTTP-only cookie
+        // Check if this is an API request
+        if req.headers.accept.first?.mediaType == .json {
+            return try Response(
+                status: .ok,
+                headers: ["Content-Type": "application/json"],
+                body: .init(data: JSONEncoder().encode(DTOs.AuthResponse(
+                    token: token,
+                    user: .init(user: user)
+                )))
+            )
+        }
+        
+        // For web requests, continue with cookie-based auth
         let cookie = HTTPCookies.Value(
             string: token,
             expires: payload.expiration.value,
@@ -85,11 +105,8 @@ struct AuthController: RouteCollection {
             sameSite: .lax
         )
         
-        // Create response with cookie
         let response = req.redirect(to: "/admin/dashboard")
         response.cookies["vapor-auth-token"] = cookie
-        
-        // Store the payload in the auth session
         req.auth.login(payload)
         
         return response

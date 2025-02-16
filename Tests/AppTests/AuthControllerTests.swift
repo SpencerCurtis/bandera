@@ -13,9 +13,18 @@ final class AuthControllerTests: XCTestCase {
     override func setUp() async throws {
         app = try await Application.make(.testing)
         try await configure(app)
+        
+        // Clean up any existing data
+        try await User.query(on: app.db).delete()
+        try await FeatureFlag.query(on: app.db).delete()
+        try await UserFeatureFlag.query(on: app.db).delete()
     }
     
     override func tearDown() async throws {
+        // Clean up the database
+        try await User.query(on: app.db).delete()
+        try await FeatureFlag.query(on: app.db).delete()
+        try await UserFeatureFlag.query(on: app.db).delete()
         try await app.asyncShutdown()
     }
     
@@ -105,6 +114,7 @@ final class AuthControllerTests: XCTestCase {
         // When
         try app.test(.POST, "auth/login", beforeRequest: { req in
             req.headers.contentType = HTTPMediaType.json
+            req.headers.add(name: .accept, value: "application/json")
             req.body = ByteBuffer(data: loginData)
         }, afterResponse: { response in
             // Then
@@ -129,6 +139,7 @@ final class AuthControllerTests: XCTestCase {
         // When/Then
         try app.test(.POST, "auth/login", beforeRequest: { req in
             req.headers.contentType = HTTPMediaType.json
+            req.headers.add(name: .accept, value: "application/json")
             req.body = ByteBuffer(data: loginData)
         }, afterResponse: { response in
             XCTAssertEqual(response.status, HTTPStatus.unauthorized)
@@ -158,6 +169,7 @@ final class AuthControllerTests: XCTestCase {
         // When/Then
         try app.test(.POST, "auth/login", beforeRequest: { req in
             req.headers.contentType = HTTPMediaType.json
+            req.headers.add(name: .accept, value: "application/json")
             req.body = ByteBuffer(data: loginData)
         }, afterResponse: { response in
             XCTAssertEqual(response.status, HTTPStatus.unauthorized)
