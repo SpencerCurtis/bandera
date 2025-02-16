@@ -3,7 +3,7 @@ import Vapor
 
 struct CreateAdminUser: AsyncMigration {
     func prepare(on database: Database) async throws {
-        let adminUser = try User(
+        let adminUser = User(
             email: "admin@example.com",
             passwordHash: try Bcrypt.hash("admin123"),
             isAdmin: true
