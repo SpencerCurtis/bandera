@@ -10,6 +10,9 @@ func routes(_ app: Application) throws {
     // Register admin routes
     try app.register(collection: AdminController())
     
+    // Register WebSocket routes
+    try app.register(collection: WebSocketController())
+    
     // Basic health check route
     app.get("health") { req async -> String in
         "OK"
