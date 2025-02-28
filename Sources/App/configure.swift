@@ -15,6 +15,9 @@ public func configure(_ app: Application) async throws {
     app.sessions.use(.memory)
     app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
     app.middleware.use(app.sessions.middleware)
+    
+    // Add JWT cookie authentication middleware
+    app.middleware.use(JWTCookieMiddleware())
 
     // Configure database
     app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
@@ -33,6 +36,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateUser())
     app.migrations.add(CreateFeatureFlag())
     app.migrations.add(CreateUserFeatureFlag())
+    app.migrations.add(AddUserIdToFeatureFlag())
 
     // Add admin user in non-testing environments
     if app.environment != .testing {
