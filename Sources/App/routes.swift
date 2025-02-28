@@ -7,8 +7,8 @@ func routes(_ app: Application) throws {
     // Register feature flag routes
     try app.register(collection: FeatureFlagController())
     
-    // Register admin routes
-    try app.register(collection: AdminController())
+    // Register dashboard routes (renamed from admin)
+    try app.register(collection: DashboardController())
     
     // Register WebSocket routes
     try app.register(collection: WebSocketController())

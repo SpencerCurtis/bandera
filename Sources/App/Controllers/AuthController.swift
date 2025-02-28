@@ -105,7 +105,7 @@ struct AuthController: RouteCollection {
             sameSite: .lax
         )
         
-        let response = req.redirect(to: "/admin/dashboard")
+        let response = req.redirect(to: "/dashboard")
         response.cookies["vapor-auth-token"] = cookie
         req.auth.login(payload)
         

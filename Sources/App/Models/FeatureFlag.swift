@@ -26,6 +26,9 @@ final class FeatureFlag: Model, Content {
     @Field(key: "description")
     var description: String?
     
+    @Field(key: "user_id")
+    var userId: UUID?
+    
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
     
@@ -38,12 +41,14 @@ final class FeatureFlag: Model, Content {
          key: String,
          type: FeatureFlagType,
          defaultValue: String,
-         description: String? = nil) {
+         description: String? = nil,
+         userId: UUID? = nil) {
         self.id = id
         self.key = key
         self.type = type
         self.defaultValue = defaultValue
         self.description = description
+        self.userId = userId
     }
 }
 
@@ -66,6 +71,55 @@ extension FeatureFlag {
         let key: String
         let type: FeatureFlagType
         let defaultValue: String
+        let description: String?
+    }
+    
+    struct FlagsContainer: Content {
+        let flags: [String: Response]
+        let isEmpty: Bool
+        
+        init(flags: [String: Response]) {
+            self.flags = flags
+            self.isEmpty = flags.isEmpty
+        }
+        
+        static func getUserFlags(userId: String, on db: Database) async throws -> FlagsContainer {
+            // Get all feature flags for this user
+            let flags = try await FeatureFlag.query(on: db)
+                .filter(\FeatureFlag.$userId, .equal, UUID(uuidString: userId))
+                .all()
+            
+            // Get user overrides
+            let overrides = try await UserFeatureFlag.query(on: db)
+                .filter(\UserFeatureFlag.$userId, .equal, userId)
+                .with(\.$featureFlag)
+                .all()
+            
+            // Create response dictionary
+            var response: [String: Response] = [:]
+            
+            for flag in flags {
+                let override = overrides.first { $0.$featureFlag.id == flag.id }
+                response[flag.key] = .init(
+                    id: flag.id!,
+                    key: flag.key,
+                    type: flag.type,
+                    value: override?.value ?? flag.defaultValue,
+                    isOverridden: override != nil,
+                    description: flag.description
+                )
+            }
+            
+            return FlagsContainer(flags: response)
+        }
+    }
+    
+    struct Response: Content {
+        let id: UUID
+        let key: String
+        let type: FeatureFlagType
+        let value: String
+        let isOverridden: Bool
         let description: String?
     }
 }
