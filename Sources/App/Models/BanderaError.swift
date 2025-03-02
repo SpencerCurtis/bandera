@@ -16,6 +16,7 @@ enum BanderaError: Error, Sendable {
     
     // Server errors
     case serverError(String)
+    case internalServerError(String)
     
     // Custom error with message
     case custom(String)
@@ -37,7 +38,7 @@ extension BanderaError: AbortError {
             return .conflict
         case .validationFailed:
             return .badRequest
-        case .serverError:
+        case .serverError, .internalServerError:
             return .internalServerError
         case .custom:
             return .badRequest
@@ -60,6 +61,8 @@ extension BanderaError: AbortError {
             return "Validation failed: \(message)"
         case .serverError(let message):
             return "Server error: \(message)"
+        case .internalServerError(let message):
+            return "Internal server error: \(message)"
         case .custom(let message):
             return message
         }

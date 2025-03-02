@@ -48,7 +48,7 @@ struct FeatureFlagController: RouteCollection {
         try await flag.save(on: req.db)
         
         // Broadcast creation event
-        try await req.application.webSocketService.broadcast(
+        try await req.services.webSocketService.broadcast(
             event: WebSocketService.FeatureFlagEvent.created.rawValue,
             data: flag
         )
@@ -97,7 +97,7 @@ struct FeatureFlagController: RouteCollection {
         try await flag.save(on: req.db)
         
         // Broadcast update event
-        try await req.application.webSocketService.broadcast(
+        try await req.services.webSocketService.broadcast(
             event: WebSocketService.FeatureFlagEvent.updated.rawValue,
             data: flag
         )
@@ -129,7 +129,7 @@ struct FeatureFlagController: RouteCollection {
         try await flag.delete(on: req.db)
         
         // Broadcast deletion event
-        try await req.application.webSocketService.broadcast(
+        try await req.services.webSocketService.broadcast(
             event: WebSocketService.FeatureFlagEvent.deleted.rawValue,
             data: ["id": flag.id!.uuidString]
         )
