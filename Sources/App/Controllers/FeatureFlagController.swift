@@ -3,7 +3,7 @@ import Fluent
 
 struct FeatureFlagController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        let protected = routes.grouped(UserJWTPayload.authenticator())
+        let protected = routes.grouped(AuthMiddleware.standard)
         let featureFlags = protected.grouped("feature-flags")
         
         // User routes

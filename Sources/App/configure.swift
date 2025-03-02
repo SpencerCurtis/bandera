@@ -16,8 +16,8 @@ public func configure(_ app: Application) async throws {
     app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
     app.middleware.use(app.sessions.middleware)
     
-    // Add JWT cookie authentication middleware
-    app.middleware.use(JWTCookieMiddleware())
+    // Add unified authentication middleware instead of JWTCookieMiddleware
+    app.middleware.use(AuthMiddleware.standard)
 
     // Configure database
     app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)

@@ -4,8 +4,8 @@ import Fluent
 // Renamed from AdminController to DashboardController to reflect its more general purpose
 struct DashboardController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Use only UserJWTPayload authenticator without AdminMiddleware
-        let protected = routes.grouped(UserJWTPayload.authenticator())
+        // Use the new AuthMiddleware instead of UserJWTPayload.authenticator()
+        let protected = routes.grouped(AuthMiddleware.standard)
         
         // Rename from admin to dashboard
         let dashboard = protected.grouped("dashboard")

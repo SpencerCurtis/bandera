@@ -3,7 +3,7 @@ import WebSocketKit
 
 struct WebSocketController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        let protected = routes.grouped(UserAuthMiddleware())
+        let protected = routes.grouped(AuthMiddleware.standard)
         
         // Add the WebSocket endpoint at flags/socket to match the client
         protected.get("flags", "socket") { req -> Response in
