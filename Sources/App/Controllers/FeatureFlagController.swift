@@ -29,34 +29,15 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.authenticationRequired
         }
         
-        // Check if flag with same key exists for this user
-        if try await FeatureFlag.query(on: req.db)
-            .filter(\FeatureFlag.$key, .equal, create.key)
-            .filter(\FeatureFlag.$userId, .equal, userId)
-            .first() != nil {
-            throw BanderaError.resourceAlreadyExists("A feature flag with this key already exists for your account")
-        }
-        
-        let flag = FeatureFlag.create(from: create, userId: userId)
-        try await flag.save(on: req.db)
-        
-        // Broadcast creation event
-        try await req.services.webSocketService.broadcast(
-            event: WebSocketDTOs.FeatureFlagEvent.created.rawValue,
-            data: WebSocketDTOs.FeatureFlagData(from: flag)
-        )
-        
-        return flag
+        // Use the feature flag service to create the flag
+        return try await req.services.featureFlagService.createFlag(create, userId: userId)
     }
     
     @Sendable
     func update(req: Request) async throws -> FeatureFlag {
+        // Get the flag ID from the request parameters
         guard let id = req.parameters.get("id", as: UUID.self) else {
             throw BanderaError.validationFailed("Invalid feature flag ID")
-        }
-        
-        guard let flag = try await FeatureFlag.find(id, on: req.db) else {
-            throw BanderaError.resourceNotFound("Feature flag")
         }
         
         // Get the authenticated user
@@ -65,44 +46,19 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.authenticationRequired
         }
         
-        // Ensure the flag belongs to the current user
-        guard flag.userId == userId else {
-            throw BanderaError.accessDenied
-        }
-        
+        // Validate and decode the update request
         try DTOs.UpdateRequest.validate(content: req)
         let update = try req.content.decode(DTOs.UpdateRequest.self)
         
-        // If key is being changed, check for conflicts with user's own flags
-        if update.key != flag.key {
-            if try await FeatureFlag.query(on: req.db)
-                .filter(\FeatureFlag.$key, .equal, update.key)
-                .filter(\FeatureFlag.$userId, .equal, userId)
-                .first() != nil {
-                throw BanderaError.resourceAlreadyExists("A feature flag with this key already exists for your account")
-            }
-        }
-        
-        flag.update(from: update)
-        try await flag.save(on: req.db)
-        
-        // Broadcast update event
-        try await req.services.webSocketService.broadcast(
-            event: WebSocketDTOs.FeatureFlagEvent.updated.rawValue,
-            data: WebSocketDTOs.FeatureFlagData(from: flag)
-        )
-        
-        return flag
+        // Use the feature flag service to update the flag
+        return try await req.services.featureFlagService.updateFlag(id: id, update, userId: userId)
     }
     
     @Sendable
     func delete(req: Request) async throws -> HTTPStatus {
+        // Get the flag ID from the request parameters
         guard let id = req.parameters.get("id", as: UUID.self) else {
             throw BanderaError.validationFailed("Invalid feature flag ID")
-        }
-        
-        guard let flag = try await FeatureFlag.find(id, on: req.db) else {
-            throw BanderaError.resourceNotFound("Feature flag")
         }
         
         // Get the authenticated user
@@ -111,29 +67,17 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.authenticationRequired
         }
         
-        // Ensure the flag belongs to the current user
-        guard flag.userId == userId else {
-            throw BanderaError.accessDenied
-        }
+        // Use the feature flag service to delete the flag
+        try await req.services.featureFlagService.deleteFlag(id: id, userId: userId)
         
-        // Store the ID before deletion for the event
-        let flagId = flag.id!
-        
-        try await flag.delete(on: req.db)
-        
-        // Broadcast deletion event with just the ID
-        try await req.services.webSocketService.broadcast(
-            event: WebSocketDTOs.FeatureFlagEvent.deleted.rawValue,
-            data: ["id": flagId.uuidString]
-        )
-        
-        return .noContent
+        return .ok
     }
     
     @Sendable
     func getForUser(req: Request) async throws -> DTOs.FlagsContainer {
+        // Get the user ID from the request parameters
         guard let userId = req.parameters.get("userId") else {
-            throw BanderaError.validationFailed("User ID is required")
+            throw BanderaError.validationFailed("Invalid user ID")
         }
         
         // Get the authenticated user
@@ -141,12 +85,13 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.authenticationRequired
         }
         
-        // Only allow users to get their own flags unless they're an admin
+        // Only allow access to own flags or if admin
         if !payload.isAdmin && payload.subject.value != userId {
             throw BanderaError.accessDenied
         }
         
-        return try await FeatureFlag.getUserFlags(userId: userId, on: req.db)
+        // Use the feature flag service to get flags with overrides
+        return try await req.services.featureFlagService.getFlagsWithOverrides(userId: userId)
     }
     
     @Sendable
@@ -157,13 +102,7 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.authenticationRequired
         }
         
-        // Only return flags for the current user unless they're an admin
-        if payload.isAdmin {
-            return try await FeatureFlag.query(on: req.db).all()
-        } else {
-            return try await FeatureFlag.query(on: req.db)
-                .filter(\FeatureFlag.$userId, .equal, userId)
-                .all()
-        }
+        // Use the feature flag service to get all flags for the user
+        return try await req.services.featureFlagService.getAllFlags(userId: userId)
     }
 } 

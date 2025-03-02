@@ -27,115 +27,53 @@ struct AuthController: RouteCollection {
     @Sendable
     func register(req: Request) async throws -> DTOs.AuthResponse {
         try DTOs.RegisterRequest.validate(content: req)
-        let create = try req.content.decode(DTOs.RegisterRequest.self)
+        let registerRequest = try req.content.decode(DTOs.RegisterRequest.self)
         
-        if try await User.query(on: req.db)
-            .filter(\.$email == create.email)
-            .first() != nil {
-            throw BanderaError.resourceAlreadyExists("A user with this email already exists")
-        }
-        
-        // Create new user
-        let user = try User.create(from: create)
-        try await user.save(on: req.db)
-        
-        // Generate token
-        let payload = try UserJWTPayload(user: user)
-        let token = try req.application.jwt.signers.sign(payload)
-        
-        // Return structured response
-        return DTOs.AuthResponse(
-            token: token,
-            user: .init(user: user)
-        )
+        // Use the auth service to register the user
+        return try await req.services.authService.register(registerRequest)
     }
     
     // Login endpoint
     @Sendable
     func login(req: Request) async throws -> Response {
         try DTOs.LoginRequest.validate(content: req)
-        let credentials = try req.content.decode(DTOs.LoginRequest.self)
+        let loginRequest = try req.content.decode(DTOs.LoginRequest.self)
         
-        guard let user = try await User.query(on: req.db)
-            .filter(\.$email == credentials.email)
-            .first() else {
-            req.logger.debug("User not found: \(credentials.email)")
-            // Check if this is an API request
-            if req.headers.accept.first?.mediaType == .json {
-                throw BanderaError.invalidCredentials
-            }
-            return req.redirect(to: "/auth/login?error=Invalid+credentials")
-        }
+        // Use the auth service to login the user
+        let authResponse = try await req.services.authService.login(loginRequest)
         
-        guard try user.verify(password: credentials.password) else {
-            req.logger.debug("Invalid password for user: \(credentials.email)")
-            // Check if this is an API request
-            if req.headers.accept.first?.mediaType == .json {
-                throw BanderaError.invalidCredentials
-            }
-            return req.redirect(to: "/auth/login?error=Invalid+credentials")
-        }
-        
-        req.logger.debug("User authenticated successfully: \(credentials.email), isAdmin: \(user.isAdmin)")
-        
-        // Generate JWT payload and token
-        let payload = try UserJWTPayload(user: user)
-        let token = try req.jwt.sign(payload)
-        
-        req.logger.debug("Generated JWT token with payload: subject=\(payload.subject.value), isAdmin=\(payload.isAdmin)")
-        
-        // Check if this is an API request
+        // Check if this is an API call or a web request
         if req.headers.accept.first?.mediaType == .json {
-            return try Response(
-                status: .ok,
-                headers: ["Content-Type": "application/json"],
-                body: .init(data: JSONEncoder().encode(DTOs.AuthResponse(
-                    token: token,
-                    user: .init(user: user)
-                )))
+            // API call, return JSON response
+            return Response(status: .ok, body: .init(data: try JSONEncoder().encode(authResponse)))
+        } else {
+            // Web request, set cookie and redirect
+            let response = req.redirect(to: "/dashboard")
+            response.cookies["vapor-auth-token"] = .init(
+                string: authResponse.token,
+                expires: Date().addingTimeInterval(86400), // 24 hours
+                isSecure: true,
+                isHTTPOnly: true,
+                sameSite: .lax
             )
+            return response
         }
-        
-        // For web requests, continue with cookie-based auth
-        let cookie = HTTPCookies.Value(
-            string: token,
-            expires: payload.expiration.value,
-            isSecure: false,
-            isHTTPOnly: true,
-            sameSite: .lax
-        )
-        
-        let response = req.redirect(to: "/dashboard")
-        response.cookies["vapor-auth-token"] = cookie
-        req.auth.login(payload)
-        
-        return response
     }
     
     // Logout endpoint
     @Sendable
     func logout(req: Request) async throws -> Response {
-        // Clear the auth token cookie by setting an expired cookie
-        let expiredCookie = HTTPCookies.Value(
+        // Clear the auth cookie
+        let response = req.redirect(to: "/auth/login")
+        response.cookies["vapor-auth-token"] = .init(
             string: "",
             expires: Date(timeIntervalSince1970: 0),
-            maxAge: -1,
-            isSecure: false,
+            isSecure: true,
             isHTTPOnly: true,
             sameSite: .lax
         )
         
-        // Create response with cache control headers
-        let response = req.redirect(to: "/auth/login")
-        response.cookies["vapor-auth-token"] = expiredCookie
-        
-        // Add cache control headers to prevent caching
-        response.headers.cacheControl = .init(noCache: true)
-        response.headers.add(name: .pragma, value: "no-cache")
-        response.headers.add(name: .expires, value: "0")
-        
-        // Clear the auth session
-        req.auth.logout(UserJWTPayload.self)
+        // Destroy session
         req.session.destroy()
         
         return response

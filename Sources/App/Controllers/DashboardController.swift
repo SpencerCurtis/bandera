@@ -47,8 +47,8 @@ struct DashboardController: RouteCollection {
             throw BanderaError.authenticationRequired
         }
         
-        // Get user-specific flags instead of all flags
-        let userFlags = try await FeatureFlag.getUserFlags(userId: userId.uuidString, on: req.db)
+        // Get user-specific flags using the feature flag service
+        let userFlags = try await req.services.featureFlagService.getFlagsWithOverrides(userId: userId.uuidString)
         
         // Convert FeatureFlag.Response objects to FeatureFlag objects
         let featureFlags = Array(userFlags.flags.values).map { response in
@@ -77,15 +77,12 @@ struct DashboardController: RouteCollection {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value),
-              let flagId = req.parameters.get("id", as: UUID.self),
-              let flag = try await FeatureFlag.find(flagId, on: req.db) else {
+              let flagId = req.parameters.get("id", as: UUID.self) else {
             throw BanderaError.resourceNotFound("Feature flag")
         }
         
-        // Ensure the flag belongs to the current user
-        guard flag.$userId.value == userId else {
-            throw BanderaError.accessDenied
-        }
+        // Get the flag using the feature flag service
+        let flag = try await req.services.featureFlagService.getFlag(id: flagId, userId: userId)
         
         let context = ViewContextDTOs.FeatureFlagFormContext(flag: flag, isAuthenticated: true)
         return try await req.view.render("feature-flag-form", context)
@@ -104,11 +101,12 @@ struct DashboardController: RouteCollection {
         try FeatureFlagDTOs.CreateRequest.validate(content: req)
         let create = try req.content.decode(FeatureFlagDTOs.CreateRequest.self)
         
-        // Check if flag with same key exists for this user
-        if try await FeatureFlag.query(on: req.db)
-            .filter(\FeatureFlag.$key, .equal, create.key)
-            .filter(\FeatureFlag.$userId, .equal, userId)
-            .first() != nil {
+        do {
+            // Use the feature flag service to create the flag
+            _ = try await req.services.featureFlagService.createFlag(create, userId: userId)
+            return req.redirect(to: "/dashboard")
+        } catch BanderaError.resourceAlreadyExists {
+            // Handle the case where the flag already exists
             let context = ViewContextDTOs.FeatureFlagFormContext(
                 create: create,
                 isAuthenticated: true,
@@ -116,11 +114,6 @@ struct DashboardController: RouteCollection {
             )
             return try await req.view.render("feature-flag-form", context).encodeResponse(for: req)
         }
-        
-        let flag = FeatureFlag.create(from: create, userId: userId)
-        try await flag.save(on: req.db)
-        
-        return req.redirect(to: "/dashboard")
     }
     
     @Sendable
@@ -128,39 +121,27 @@ struct DashboardController: RouteCollection {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value),
-              let flagId = req.parameters.get("id", as: UUID.self),
-              let flag = try await FeatureFlag.find(flagId, on: req.db) else {
+              let flagId = req.parameters.get("id", as: UUID.self) else {
             throw BanderaError.resourceNotFound("Feature flag")
-        }
-        
-        // Ensure the flag belongs to the current user
-        guard flag.$userId.value == userId else {
-            throw BanderaError.accessDenied
         }
         
         try FeatureFlagDTOs.UpdateRequest.validate(content: req)
         var update = try req.content.decode(FeatureFlagDTOs.UpdateRequest.self)
         update.id = flagId  // Set the ID from the URL parameter
         
-        // If key is being changed, check for conflicts with user's own flags
-        if update.key != flag.key {
-            if try await FeatureFlag.query(on: req.db)
-                .filter(\FeatureFlag.$key, .equal, update.key)
-                .filter(\FeatureFlag.$userId, .equal, userId)
-                .first() != nil {
-                let context = ViewContextDTOs.FeatureFlagFormContext(
-                    update: update,
-                    isAuthenticated: true,
-                    error: "A feature flag with this key already exists"
-                )
-                return try await req.view.render("feature-flag-form", context).encodeResponse(for: req)
-            }
+        do {
+            // Use the feature flag service to update the flag
+            _ = try await req.services.featureFlagService.updateFlag(id: flagId, update, userId: userId)
+            return req.redirect(to: "/dashboard")
+        } catch BanderaError.resourceAlreadyExists {
+            // Handle the case where the flag with the new key already exists
+            let context = ViewContextDTOs.FeatureFlagFormContext(
+                update: update,
+                isAuthenticated: true,
+                error: "A feature flag with this key already exists"
+            )
+            return try await req.view.render("feature-flag-form", context).encodeResponse(for: req)
         }
-        
-        flag.update(from: update)
-        try await flag.save(on: req.db)
-        
-        return req.redirect(to: "/dashboard")
     }
     
     @Sendable
@@ -168,17 +149,13 @@ struct DashboardController: RouteCollection {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value),
-              let flagId = req.parameters.get("id", as: UUID.self),
-              let flag = try await FeatureFlag.find(flagId, on: req.db) else {
+              let flagId = req.parameters.get("id", as: UUID.self) else {
             throw BanderaError.resourceNotFound("Feature flag")
         }
         
-        // Ensure the flag belongs to the current user
-        guard flag.$userId.value == userId else {
-            throw BanderaError.accessDenied
-        }
+        // Use the feature flag service to delete the flag
+        try await req.services.featureFlagService.deleteFlag(id: flagId, userId: userId)
         
-        try await flag.delete(on: req.db)
         return req.redirect(to: "/dashboard")
     }
 } 
