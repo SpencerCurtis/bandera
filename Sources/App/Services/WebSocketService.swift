@@ -45,7 +45,7 @@ public actor WebSocketService: WebSocketServiceProtocol {
     ///   - event: The event name
     ///   - data: The data to broadcast
     public func broadcast<T: Codable & Sendable>(event: String, data: T) async throws {
-        let payload = WebSocketMessage(event: event, data: data)
+        let payload = DTOs.Message(event: event, data: data)
         let jsonData = try JSONEncoder().encode(payload)
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
             logger.error("Failed to create JSON string from payload")
@@ -62,13 +62,8 @@ public actor WebSocketService: WebSocketServiceProtocol {
     }
 }
 
-// MARK: - WebSocket Message Types
-struct WebSocketMessage<T: Codable>: Codable {
-    let event: String
-    let data: T
-}
-
-// MARK: - Feature Flag Events
+// MARK: - Feature Flag Events (Deprecated)
+@available(*, deprecated, message: "Use WebSocketDTOs.FeatureFlagEvent instead")
 extension WebSocketService {
     /// Events that can be broadcast over WebSockets
     public enum FeatureFlagEvent: String {

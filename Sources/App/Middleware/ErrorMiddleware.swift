@@ -82,7 +82,7 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
         } else if request.headers.accept.contains(where: { $0.mediaType == .html }) {
             // For HTML requests, try to render an error page
             do {
-                let errorContext = ViewContext(
+                let errorContext = ViewContextDTOs.BaseContext(
                     title: "Error \(status.code)",
                     error: reason
                 )

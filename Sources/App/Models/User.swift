@@ -1,26 +1,35 @@
 import Fluent
 import Vapor
 
+/// Model representing a user
 final class User: Model, Content, SessionAuthenticatable, Authenticatable {
+    /// Database schema name
     static let schema = "users"
     
+    /// Unique identifier
     @ID(key: .id)
     var id: UUID?
     
+    /// User's email address
     @Field(key: "email")
     var email: String
     
+    /// Hashed password
     @Field(key: "password_hash")
     var passwordHash: String
     
+    /// Whether the user is an admin
     @Field(key: "is_admin")
     var isAdmin: Bool
     
+    /// When the user was created
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
     
+    /// Default initializer
     init() { }
     
+    /// Initializer with all properties
     init(id: UUID? = nil, email: String, passwordHash: String, isAdmin: Bool = false) {
         self.id = id
         self.email = email
@@ -29,35 +38,62 @@ final class User: Model, Content, SessionAuthenticatable, Authenticatable {
     }
     
     // MARK: - SessionAuthenticatable
+    
+    /// Session identifier
     var sessionID: String {
         id?.uuidString ?? ""
     }
     
     // MARK: - Password Verification
+    
+    /// Verify a password against the stored hash
+    /// - Parameter password: The password to verify
+    /// - Returns: Whether the password is valid
     func verify(password: String) throws -> Bool {
         try Bcrypt.verify(password, created: self.passwordHash)
     }
 }
 
-// MARK: - Create DTO
+// MARK: - Helper Methods
 extension User {
-    struct Create: Content, Validatable {
-        let email: String
-        let password: String
-        let isAdmin: Bool
-        
-        static func validations(_ validations: inout Validations) {
-            validations.add("email", as: String.self, is: .email)
-            validations.add("password", as: String.self, is: .count(8...))
+    /// Create a user from a DTO
+    static func create(from dto: UserDTOs.CreateRequest) throws -> User {
+        do {
+            return User(
+                email: dto.email,
+                passwordHash: try Bcrypt.hash(dto.password),
+                isAdmin: dto.isAdmin
+            )
+        } catch {
+            throw BanderaError.internalServerError("Failed to hash password: \(error.localizedDescription)")
         }
     }
     
-    static func create(from dto: Create) throws -> User {
-        User(
-            email: dto.email,
-            passwordHash: try Bcrypt.hash(dto.password),
-            isAdmin: dto.isAdmin
-        )
+    /// Create a user from an authentication DTO
+    static func create(from dto: AuthenticationDTOs.RegisterRequest) throws -> User {
+        do {
+            return User(
+                email: dto.email,
+                passwordHash: try Bcrypt.hash(dto.password),
+                isAdmin: dto.isAdmin
+            )
+        } catch {
+            throw BanderaError.internalServerError("Failed to hash password: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Update a user from a DTO
+    func update(from dto: UserDTOs.UpdateRequest) throws {
+        self.email = dto.email
+        self.isAdmin = dto.isAdmin
+        
+        if let password = dto.password {
+            do {
+                self.passwordHash = try Bcrypt.hash(password)
+            } catch {
+                throw BanderaError.internalServerError("Failed to hash password: \(error.localizedDescription)")
+            }
+        }
     }
 }
 

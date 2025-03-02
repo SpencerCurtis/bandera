@@ -17,8 +17,7 @@ struct AuthController: RouteCollection {
     func loginPage(req: Request) async throws -> View {
         return try await req.view.render(
             "login",
-            ViewContext(
-                title: "Login",
+            ViewContextDTOs.LoginContext(
                 error: req.query[String.self, at: "error"]
             )
         )
@@ -27,8 +26,8 @@ struct AuthController: RouteCollection {
     // Registration endpoint
     @Sendable
     func register(req: Request) async throws -> DTOs.AuthResponse {
-        try User.Create.validate(content: req)
-        let create = try req.content.decode(User.Create.self)
+        try DTOs.RegisterRequest.validate(content: req)
+        let create = try req.content.decode(DTOs.RegisterRequest.self)
         
         if try await User.query(on: req.db)
             .filter(\.$email == create.email)
@@ -54,7 +53,8 @@ struct AuthController: RouteCollection {
     // Login endpoint
     @Sendable
     func login(req: Request) async throws -> Response {
-        let credentials = try req.content.decode(LoginCredentials.self)
+        try DTOs.LoginRequest.validate(content: req)
+        let credentials = try req.content.decode(DTOs.LoginRequest.self)
         
         guard let user = try await User.query(on: req.db)
             .filter(\.$email == credentials.email)

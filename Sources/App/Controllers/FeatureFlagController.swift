@@ -20,8 +20,8 @@ struct FeatureFlagController: RouteCollection {
     
     @Sendable
     func create(req: Request) async throws -> FeatureFlag {
-        try FeatureFlag.Create.validate(content: req)
-        let create = try req.content.decode(FeatureFlag.Create.self)
+        try DTOs.CreateRequest.validate(content: req)
+        let create = try req.content.decode(DTOs.CreateRequest.self)
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
@@ -37,20 +37,13 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.resourceAlreadyExists("A feature flag with this key already exists for your account")
         }
         
-        let flag = FeatureFlag(
-            key: create.key,
-            type: create.type,
-            defaultValue: create.defaultValue,
-            description: create.description,
-            userId: userId
-        )
-        
+        let flag = FeatureFlag.create(from: create, userId: userId)
         try await flag.save(on: req.db)
         
         // Broadcast creation event
         try await req.services.webSocketService.broadcast(
-            event: WebSocketService.FeatureFlagEvent.created.rawValue,
-            data: flag
+            event: WebSocketDTOs.FeatureFlagEvent.created.rawValue,
+            data: WebSocketDTOs.FeatureFlagData(from: flag)
         )
         
         return flag
@@ -77,7 +70,8 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.accessDenied
         }
         
-        let update = try req.content.decode(FeatureFlag.Update.self)
+        try DTOs.UpdateRequest.validate(content: req)
+        let update = try req.content.decode(DTOs.UpdateRequest.self)
         
         // If key is being changed, check for conflicts with user's own flags
         if update.key != flag.key {
@@ -89,17 +83,13 @@ struct FeatureFlagController: RouteCollection {
             }
         }
         
-        flag.key = update.key
-        flag.type = update.type
-        flag.defaultValue = update.defaultValue
-        flag.description = update.description
-        
+        flag.update(from: update)
         try await flag.save(on: req.db)
         
         // Broadcast update event
         try await req.services.webSocketService.broadcast(
-            event: WebSocketService.FeatureFlagEvent.updated.rawValue,
-            data: flag
+            event: WebSocketDTOs.FeatureFlagEvent.updated.rawValue,
+            data: WebSocketDTOs.FeatureFlagData(from: flag)
         )
         
         return flag
@@ -126,19 +116,22 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.accessDenied
         }
         
+        // Store the ID before deletion for the event
+        let flagId = flag.id!
+        
         try await flag.delete(on: req.db)
         
-        // Broadcast deletion event
+        // Broadcast deletion event with just the ID
         try await req.services.webSocketService.broadcast(
-            event: WebSocketService.FeatureFlagEvent.deleted.rawValue,
-            data: ["id": flag.id!.uuidString]
+            event: WebSocketDTOs.FeatureFlagEvent.deleted.rawValue,
+            data: ["id": flagId.uuidString]
         )
         
         return .noContent
     }
     
     @Sendable
-    func getForUser(req: Request) async throws -> FeatureFlag.FlagsContainer {
+    func getForUser(req: Request) async throws -> DTOs.FlagsContainer {
         guard let userId = req.parameters.get("userId") else {
             throw BanderaError.validationFailed("User ID is required")
         }
@@ -153,7 +146,7 @@ struct FeatureFlagController: RouteCollection {
             throw BanderaError.accessDenied
         }
         
-        return try await FeatureFlag.FlagsContainer.getUserFlags(userId: userId, on: req.db)
+        return try await FeatureFlag.getUserFlags(userId: userId, on: req.db)
     }
     
     @Sendable

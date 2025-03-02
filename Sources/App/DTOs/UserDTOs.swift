@@ -1,26 +1,12 @@
 import Vapor
+import Fluent
 
-/// Data Transfer Objects for Authentication
-enum AuthenticationDTOs {
+/// Data Transfer Objects for Users
+enum UserDTOs {
     // MARK: - Request DTOs
     
-    /// DTO for login requests
-    struct LoginRequest: Content, Validatable {
-        /// User's email address
-        let email: String
-        
-        /// User's password
-        let password: String
-        
-        /// Validation rules for login
-        static func validations(_ validations: inout Validations) {
-            validations.add("email", as: String.self, is: .email)
-            validations.add("password", as: String.self, is: !.empty)
-        }
-    }
-    
-    /// DTO for registration requests
-    struct RegisterRequest: Content, Validatable {
+    /// DTO for creating a new user
+    struct CreateRequest: Content, Validatable {
         /// User's email address
         let email: String
         
@@ -30,26 +16,35 @@ enum AuthenticationDTOs {
         /// Whether the user should be an admin
         let isAdmin: Bool
         
-        /// Validation rules for registration
+        /// Validation rules for creating a user
         static func validations(_ validations: inout Validations) {
             validations.add("email", as: String.self, is: .email)
             validations.add("password", as: String.self, is: .count(8...))
         }
     }
     
-    // MARK: - Response DTOs
-    
-    /// DTO for authentication responses
-    struct AuthResponse: Content {
-        /// JWT token for the authenticated user
-        let token: String
+    /// DTO for updating a user
+    struct UpdateRequest: Content, Validatable {
+        /// User's email address
+        let email: String
         
-        /// User information
-        let user: UserResponse
+        /// User's new password (optional)
+        let password: String?
+        
+        /// Whether the user should be an admin
+        let isAdmin: Bool
+        
+        /// Validation rules for updating a user
+        static func validations(_ validations: inout Validations) {
+            validations.add("email", as: String.self, is: .email)
+            validations.add("password", as: String?.self, is: .nil || .count(8...))
+        }
     }
     
-    /// DTO for user information in responses
-    struct UserResponse: Content {
+    // MARK: - Response DTOs
+    
+    /// DTO for user response
+    struct Response: Content {
         /// User's unique identifier
         let id: UUID
         
@@ -59,22 +54,15 @@ enum AuthenticationDTOs {
         /// Whether the user is an admin
         let isAdmin: Bool
         
+        /// When the user was created
+        let createdAt: Date?
+        
         /// Initialize from a user model
         init(user: User) {
             self.id = user.id!
             self.email = user.email
             self.isAdmin = user.isAdmin
+            self.createdAt = user.createdAt
         }
     }
-}
-
-// MARK: - Controller Extension
-extension AuthController {
-    /// Shorthand access to AuthenticationDTOs
-    typealias DTOs = AuthenticationDTOs
-}
-
-struct LoginCredentials: Content {
-    let email: String
-    let password: String
 } 

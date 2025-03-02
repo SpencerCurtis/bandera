@@ -48,7 +48,7 @@ struct DashboardController: RouteCollection {
         }
         
         // Get user-specific flags instead of all flags
-        let userFlags = try await FeatureFlag.FlagsContainer.getUserFlags(userId: userId.uuidString, on: req.db)
+        let userFlags = try await FeatureFlag.getUserFlags(userId: userId.uuidString, on: req.db)
         
         // Convert FeatureFlag.Response objects to FeatureFlag objects
         let featureFlags = Array(userFlags.flags.values).map { response in
@@ -62,13 +62,13 @@ struct DashboardController: RouteCollection {
             )
         }
         
-        let context = DashboardContext(flags: featureFlags, isAuthenticated: true)
+        let context = ViewContextDTOs.DashboardContext(flags: featureFlags, isAuthenticated: true)
         return try await req.view.render("dashboard", context)
     }
     
     @Sendable
     func createForm(req: Request) async throws -> View {
-        let context = FeatureFlagFormContext(isAuthenticated: true)
+        let context = ViewContextDTOs.FeatureFlagFormContext(isAuthenticated: true)
         return try await req.view.render("feature-flag-form", context)
     }
     
@@ -87,7 +87,7 @@ struct DashboardController: RouteCollection {
             throw BanderaError.accessDenied
         }
         
-        let context = FeatureFlagFormContext(flag: flag, isAuthenticated: true)
+        let context = ViewContextDTOs.FeatureFlagFormContext(flag: flag, isAuthenticated: true)
         return try await req.view.render("feature-flag-form", context)
     }
     
@@ -101,15 +101,15 @@ struct DashboardController: RouteCollection {
             throw BanderaError.authenticationRequired
         }
         
-        try FeatureFlag.Create.validate(content: req)
-        let create = try req.content.decode(FeatureFlag.Create.self)
+        try FeatureFlagDTOs.CreateRequest.validate(content: req)
+        let create = try req.content.decode(FeatureFlagDTOs.CreateRequest.self)
         
         // Check if flag with same key exists for this user
         if try await FeatureFlag.query(on: req.db)
             .filter(\FeatureFlag.$key, .equal, create.key)
             .filter(\FeatureFlag.$userId, .equal, userId)
             .first() != nil {
-            let context = FeatureFlagFormContext(
+            let context = ViewContextDTOs.FeatureFlagFormContext(
                 create: create,
                 isAuthenticated: true,
                 error: "A feature flag with this key already exists"
@@ -117,14 +117,7 @@ struct DashboardController: RouteCollection {
             return try await req.view.render("feature-flag-form", context).encodeResponse(for: req)
         }
         
-        let flag = FeatureFlag(
-            key: create.key,
-            type: create.type,
-            defaultValue: create.defaultValue,
-            description: create.description,
-            userId: userId
-        )
-        
+        let flag = FeatureFlag.create(from: create, userId: userId)
         try await flag.save(on: req.db)
         
         return req.redirect(to: "/dashboard")
@@ -145,7 +138,8 @@ struct DashboardController: RouteCollection {
             throw BanderaError.accessDenied
         }
         
-        var update = try req.content.decode(FeatureFlag.Update.self)
+        try FeatureFlagDTOs.UpdateRequest.validate(content: req)
+        var update = try req.content.decode(FeatureFlagDTOs.UpdateRequest.self)
         update.id = flagId  // Set the ID from the URL parameter
         
         // If key is being changed, check for conflicts with user's own flags
@@ -154,7 +148,7 @@ struct DashboardController: RouteCollection {
                 .filter(\FeatureFlag.$key, .equal, update.key)
                 .filter(\FeatureFlag.$userId, .equal, userId)
                 .first() != nil {
-                let context = FeatureFlagFormContext(
+                let context = ViewContextDTOs.FeatureFlagFormContext(
                     update: update,
                     isAuthenticated: true,
                     error: "A feature flag with this key already exists"
@@ -163,11 +157,7 @@ struct DashboardController: RouteCollection {
             }
         }
         
-        flag.key = update.key
-        flag.type = update.type
-        flag.defaultValue = update.defaultValue
-        flag.description = update.description
-        
+        flag.update(from: update)
         try await flag.save(on: req.db)
         
         return req.redirect(to: "/dashboard")
