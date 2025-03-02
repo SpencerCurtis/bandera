@@ -1,24 +1,74 @@
 import Vapor
 
-/// A container for all application services
-public final class ServiceContainer: @unchecked Sendable {
-    // MARK: - Properties
+/// Container for all services and repositories
+final class ServiceContainer: @unchecked Sendable {
+    /// The WebSocket service for real-time communication
+    let webSocketService: WebSocketServiceProtocol
     
-    /// The WebSocket service for managing WebSocket connections
-    public let webSocketService: WebSocketServiceProtocol
+    /// The feature flag repository for data access
+    let featureFlagRepository: FeatureFlagRepositoryProtocol
+    
+    /// The user repository for data access
+    let userRepository: UserRepositoryProtocol
+    
+    /// The feature flag service for business logic
+    let featureFlagService: FeatureFlagServiceProtocol
+    
+    /// The authentication service for business logic
+    let authService: AuthServiceProtocol
     
     // MARK: - Initialization
     
-    /// Creates a new service container with the specified services
-    /// - Parameter webSocketService: The WebSocket service
-    public init(webSocketService: WebSocketServiceProtocol) {
+    /// Initialize a new service container with all dependencies
+    /// - Parameters:
+    ///   - webSocketService: The WebSocket service
+    ///   - featureFlagRepository: The feature flag repository
+    ///   - userRepository: The user repository
+    ///   - featureFlagService: The feature flag service
+    ///   - authService: The authentication service
+    init(
+        webSocketService: WebSocketServiceProtocol,
+        featureFlagRepository: FeatureFlagRepositoryProtocol,
+        userRepository: UserRepositoryProtocol,
+        featureFlagService: FeatureFlagServiceProtocol,
+        authService: AuthServiceProtocol
+    ) {
         self.webSocketService = webSocketService
+        self.featureFlagRepository = featureFlagRepository
+        self.userRepository = userRepository
+        self.featureFlagService = featureFlagService
+        self.authService = authService
     }
     
-    /// Creates a new service container with default services
-    public convenience init() {
+    /// Convenience initializer that creates all services and repositories
+    /// - Parameter app: The application instance
+    convenience init(app: Application) {
+        // Create repositories
+        let featureFlagRepository = FeatureFlagRepository(database: app.db)
+        let userRepository = UserRepository(database: app.db)
+        
+        // Create WebSocket service
+        let webSocketService = WebSocketService()
+        
+        // Create feature flag service
+        let featureFlagService = FeatureFlagService(
+            repository: featureFlagRepository,
+            webSocketService: webSocketService
+        )
+        
+        // Create auth service
+        let authService = AuthService(
+            userRepository: userRepository,
+            jwtSigner: app.jwt.signers
+        )
+        
+        // Initialize with all services and repositories
         self.init(
-            webSocketService: WebSocketService()
+            webSocketService: webSocketService,
+            featureFlagRepository: featureFlagRepository,
+            userRepository: userRepository,
+            featureFlagService: featureFlagService,
+            authService: authService
         )
     }
 }
@@ -31,12 +81,12 @@ extension Application {
     }
     
     /// The application's service container
-    public var services: ServiceContainer {
+    var services: ServiceContainer {
         get {
             if let existing = storage[ServiceContainerKey.self] {
                 return existing
             }
-            let new = ServiceContainer()
+            let new = ServiceContainer(app: self)
             storage[ServiceContainerKey.self] = new
             return new
         }
@@ -50,7 +100,7 @@ extension Application {
 
 extension Request {
     /// The request's service container
-    public var services: ServiceContainer {
+    var services: ServiceContainer {
         application.services
     }
 } 

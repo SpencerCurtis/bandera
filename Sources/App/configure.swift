@@ -8,10 +8,6 @@ import JWT
 
 // configures your application
 public func configure(_ app: Application) async throws {
-    // Initialize service container
-    let serviceContainer = ServiceContainer()
-    app.services = serviceContainer
-    
     // uncomment to serve files from /Public folder
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
 
@@ -51,6 +47,11 @@ public func configure(_ app: Application) async throws {
     }
 
     try await app.autoMigrate()
+    
+    // Initialize service container with the application
+    let serviceContainer = ServiceContainer(app: app)
+    app.services = serviceContainer
+    
     // Configure views
     app.views.use(.leaf)
 
