@@ -26,7 +26,7 @@ struct FeatureFlagController: RouteCollection {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw Abort(.unauthorized)
+            throw BanderaError.authenticationRequired
         }
         
         // Check if flag with same key exists for this user
@@ -34,7 +34,7 @@ struct FeatureFlagController: RouteCollection {
             .filter(\FeatureFlag.$key, .equal, create.key)
             .filter(\FeatureFlag.$userId, .equal, userId)
             .first() != nil {
-            throw Abort(.conflict, reason: "A feature flag with this key already exists for your account")
+            throw BanderaError.resourceAlreadyExists("A feature flag with this key already exists for your account")
         }
         
         let flag = FeatureFlag(
@@ -59,22 +59,22 @@ struct FeatureFlagController: RouteCollection {
     @Sendable
     func update(req: Request) async throws -> FeatureFlag {
         guard let id = req.parameters.get("id", as: UUID.self) else {
-            throw Abort(.badRequest)
+            throw BanderaError.validationFailed("Invalid feature flag ID")
         }
         
         guard let flag = try await FeatureFlag.find(id, on: req.db) else {
-            throw Abort(.notFound)
+            throw BanderaError.resourceNotFound("Feature flag")
         }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw Abort(.unauthorized)
+            throw BanderaError.authenticationRequired
         }
         
         // Ensure the flag belongs to the current user
         guard flag.userId == userId else {
-            throw Abort(.forbidden, reason: "You can only update your own feature flags")
+            throw BanderaError.accessDenied
         }
         
         let update = try req.content.decode(FeatureFlag.Update.self)
@@ -85,7 +85,7 @@ struct FeatureFlagController: RouteCollection {
                 .filter(\FeatureFlag.$key, .equal, update.key)
                 .filter(\FeatureFlag.$userId, .equal, userId)
                 .first() != nil {
-                throw Abort(.conflict, reason: "A feature flag with this key already exists for your account")
+                throw BanderaError.resourceAlreadyExists("A feature flag with this key already exists for your account")
             }
         }
         
@@ -108,22 +108,22 @@ struct FeatureFlagController: RouteCollection {
     @Sendable
     func delete(req: Request) async throws -> HTTPStatus {
         guard let id = req.parameters.get("id", as: UUID.self) else {
-            throw Abort(.badRequest)
+            throw BanderaError.validationFailed("Invalid feature flag ID")
         }
         
         guard let flag = try await FeatureFlag.find(id, on: req.db) else {
-            throw Abort(.notFound)
+            throw BanderaError.resourceNotFound("Feature flag")
         }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw Abort(.unauthorized)
+            throw BanderaError.authenticationRequired
         }
         
         // Ensure the flag belongs to the current user
         guard flag.userId == userId else {
-            throw Abort(.forbidden, reason: "You can only delete your own feature flags")
+            throw BanderaError.accessDenied
         }
         
         try await flag.delete(on: req.db)
@@ -140,17 +140,17 @@ struct FeatureFlagController: RouteCollection {
     @Sendable
     func getForUser(req: Request) async throws -> FeatureFlag.FlagsContainer {
         guard let userId = req.parameters.get("userId") else {
-            throw Abort(.badRequest)
+            throw BanderaError.validationFailed("User ID is required")
         }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self) else {
-            throw Abort(.unauthorized)
+            throw BanderaError.authenticationRequired
         }
         
         // Only allow users to get their own flags unless they're an admin
         if !payload.isAdmin && payload.subject.value != userId {
-            throw Abort(.forbidden, reason: "You can only access your own feature flags")
+            throw BanderaError.accessDenied
         }
         
         return try await FeatureFlag.FlagsContainer.getUserFlags(userId: userId, on: req.db)
@@ -161,7 +161,7 @@ struct FeatureFlagController: RouteCollection {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw Abort(.unauthorized)
+            throw BanderaError.authenticationRequired
         }
         
         // Only return flags for the current user unless they're an admin

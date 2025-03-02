@@ -81,7 +81,7 @@ struct AuthMiddleware: AsyncMiddleware {
         
         // If we get here, no strategy succeeded
         if requireAuth {
-            throw Abort(.unauthorized, reason: "Authentication required")
+            throw BanderaError.authenticationRequired
         }
         
         // If authentication is optional, continue anyway
@@ -95,11 +95,11 @@ struct AuthMiddleware: AsyncMiddleware {
 struct RoleAuthMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
         guard let payload = request.auth.get(UserJWTPayload.self) else {
-            throw Abort(.unauthorized, reason: "Authentication required")
+            throw BanderaError.authenticationRequired
         }
         
         guard payload.isAdmin else {
-            throw Abort(.forbidden, reason: "Admin access required")
+            throw BanderaError.accessDenied
         }
         
         return try await next.respond(to: request)

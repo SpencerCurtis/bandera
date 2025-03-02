@@ -33,7 +33,7 @@ struct AuthController: RouteCollection {
         if try await User.query(on: req.db)
             .filter(\.$email == create.email)
             .first() != nil {
-            throw Abort(.conflict, reason: "A user with this email already exists")
+            throw BanderaError.resourceAlreadyExists("A user with this email already exists")
         }
         
         // Create new user
@@ -62,7 +62,7 @@ struct AuthController: RouteCollection {
             req.logger.debug("User not found: \(credentials.email)")
             // Check if this is an API request
             if req.headers.accept.first?.mediaType == .json {
-                throw Abort(.unauthorized, reason: "Invalid credentials")
+                throw BanderaError.invalidCredentials
             }
             return req.redirect(to: "/auth/login?error=Invalid+credentials")
         }
@@ -71,7 +71,7 @@ struct AuthController: RouteCollection {
             req.logger.debug("Invalid password for user: \(credentials.email)")
             // Check if this is an API request
             if req.headers.accept.first?.mediaType == .json {
-                throw Abort(.unauthorized, reason: "Invalid credentials")
+                throw BanderaError.invalidCredentials
             }
             return req.redirect(to: "/auth/login?error=Invalid+credentials")
         }

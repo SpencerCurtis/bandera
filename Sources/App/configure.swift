@@ -16,7 +16,10 @@ public func configure(_ app: Application) async throws {
     app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
     app.middleware.use(app.sessions.middleware)
     
-    // Add unified authentication middleware instead of JWTCookieMiddleware
+    // Register custom error middleware (should be first in the chain)
+    app.registerErrorMiddleware()
+    
+    // Add unified authentication middleware
     app.middleware.use(AuthMiddleware.standard)
 
     // Configure database

@@ -44,7 +44,7 @@ struct DashboardController: RouteCollection {
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
             req.logger.debug("Authentication failed, redirecting to login")
-            throw Abort(.unauthorized)
+            throw BanderaError.authenticationRequired
         }
         
         // Get user-specific flags instead of all flags
@@ -79,12 +79,12 @@ struct DashboardController: RouteCollection {
               let userId = UUID(payload.subject.value),
               let flagId = req.parameters.get("id", as: UUID.self),
               let flag = try await FeatureFlag.find(flagId, on: req.db) else {
-            throw Abort(.notFound)
+            throw BanderaError.resourceNotFound("Feature flag")
         }
         
         // Ensure the flag belongs to the current user
         guard flag.$userId.value == userId else {
-            throw Abort(.forbidden)
+            throw BanderaError.accessDenied
         }
         
         let context = FeatureFlagFormContext(flag: flag, isAuthenticated: true)
@@ -98,7 +98,7 @@ struct DashboardController: RouteCollection {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw Abort(.unauthorized)
+            throw BanderaError.authenticationRequired
         }
         
         try FeatureFlag.Create.validate(content: req)
@@ -137,12 +137,12 @@ struct DashboardController: RouteCollection {
               let userId = UUID(payload.subject.value),
               let flagId = req.parameters.get("id", as: UUID.self),
               let flag = try await FeatureFlag.find(flagId, on: req.db) else {
-            throw Abort(.notFound)
+            throw BanderaError.resourceNotFound("Feature flag")
         }
         
         // Ensure the flag belongs to the current user
         guard flag.$userId.value == userId else {
-            throw Abort(.forbidden)
+            throw BanderaError.accessDenied
         }
         
         var update = try req.content.decode(FeatureFlag.Update.self)
@@ -180,12 +180,12 @@ struct DashboardController: RouteCollection {
               let userId = UUID(payload.subject.value),
               let flagId = req.parameters.get("id", as: UUID.self),
               let flag = try await FeatureFlag.find(flagId, on: req.db) else {
-            throw Abort(.notFound)
+            throw BanderaError.resourceNotFound("Feature flag")
         }
         
         // Ensure the flag belongs to the current user
         guard flag.$userId.value == userId else {
-            throw Abort(.forbidden)
+            throw BanderaError.accessDenied
         }
         
         try await flag.delete(on: req.db)
