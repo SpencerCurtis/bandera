@@ -12,6 +12,12 @@ final class MockWebSocketService: WebSocketServiceProtocol {
     /// Events that have been broadcast
     private(set) var broadcastedEvents: [(event: String, data: Any)] = []
     
+    /// Feature flag events that have been broadcast
+    private(set) var broadcastedFeatureFlagEvents: [(flag: FeatureFlag, userId: String, eventType: String)] = []
+    
+    /// Feature flag deletion events that have been broadcast
+    private(set) var broadcastedFeatureFlagDeletions: [(id: UUID, userId: String)] = []
+    
     /// Connections that have been added
     private(set) var connections: [UUID: WebSocket] = [:]
     
@@ -37,12 +43,26 @@ final class MockWebSocketService: WebSocketServiceProtocol {
         connections.count
     }
     
+    func broadcastFlagCreated(_ flag: FeatureFlag, userId: String) async {
+        broadcastedFeatureFlagEvents.append((flag: flag, userId: userId, eventType: "feature_flag.created"))
+    }
+    
+    func broadcastFlagUpdated(_ flag: FeatureFlag, userId: String) async {
+        broadcastedFeatureFlagEvents.append((flag: flag, userId: userId, eventType: "feature_flag.updated"))
+    }
+    
+    func broadcastFlagDeleted(_ id: UUID, userId: String) async {
+        broadcastedFeatureFlagDeletions.append((id: id, userId: userId))
+    }
+    
     // MARK: - Testing Helpers
     
     /// Reset all recorded data
     func reset() {
         broadcastedMessages = []
         broadcastedEvents = []
+        broadcastedFeatureFlagEvents = []
+        broadcastedFeatureFlagDeletions = []
         connections = [:]
     }
 } 

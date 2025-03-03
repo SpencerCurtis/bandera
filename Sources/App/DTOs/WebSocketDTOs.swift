@@ -16,7 +16,7 @@ enum WebSocketDTOs {
     // MARK: - Feature Flag Event DTOs
     
     /// Feature flag event types
-    enum FeatureFlagEvent: String, Codable {
+    enum FeatureFlagEventType: String, Codable {
         /// Event when a feature flag is created
         case created = "feature_flag.created"
         
@@ -57,6 +57,42 @@ enum WebSocketDTOs {
             self.value = featureFlag.defaultValue
             self.userId = featureFlag.userId!
         }
+    }
+    
+    /// Feature flag event DTO for created and updated events
+    struct FeatureFlagEvent: Codable {
+        /// The feature flag ID
+        let id: UUID
+        
+        /// The feature flag key
+        let key: String
+        
+        /// The feature flag name
+        let name: String
+        
+        /// The feature flag description
+        let description: String?
+        
+        /// Whether the feature flag is enabled
+        let enabled: Bool
+        
+        /// The user ID associated with the event
+        let userId: String
+        
+        /// The type of event
+        let eventType: String
+    }
+    
+    /// Feature flag deleted event DTO
+    struct FeatureFlagDeletedEvent: Codable {
+        /// The ID of the deleted feature flag
+        let id: UUID
+        
+        /// The user ID associated with the deletion
+        let userId: String
+        
+        /// The type of event
+        let eventType: String
     }
 }
 
