@@ -1,98 +1,161 @@
-// @testable import App
-// import XCTVapor
-// import NIO
-// import WebSocketKit
+@testable import App
+import XCTVapor
+import WebSocketKit
+import XCTest
 
-// final class WebSocketTests: XCTestCase {
-//     var app: Application!
-//     var adminToken: String!
-//     var userToken: String!
+final class WebSocketTests: XCTestCase {
+    var app: Application!
+    var testUser: User!
+    var authToken: String!
     
-//     override func setUp() async throws {
-//         app = try await Application.make(.testing)
-//         try await configure(app)
+    override func setUp() async throws {
+        app = try await Application.testable()
         
-//         // Clean up any existing data
-//         try await User.query(on: app.db).delete()
-//         try await FeatureFlag.query(on: app.db).delete()
-//         try await UserFeatureFlag.query(on: app.db).delete()
+        // Create a test user
+        let createUser = UserDTOs.CreateRequest(
+            email: "websocket-test@example.com",
+            password: "password123",
+            name: "WebSocket Test User"
+        )
         
-//         // Create admin user and get token
-//         let adminUser = try User.create(from: .init(
-//             email: "admin@example.com",
-//             password: "adminpass123",
-//             isAdmin: true
-//         ))
-//         try await adminUser.save(on: app.db)
-//         let adminPayload = try UserJWTPayload(user: adminUser)
-//         adminToken = try app.jwt.signers.sign(adminPayload)
+        testUser = try await UserController().create(
+            user: createUser,
+            on: app.db
+        )
         
-//         // Create regular user and get token
-//         let regularUser = try User.create(from: .init(
-//             email: "user@example.com",
-//             password: "userpass123",
-//             isAdmin: false
-//         ))
-//         try await regularUser.save(on: app.db)
-//         let userPayload = try UserJWTPayload(user: regularUser)
-//         userToken = try app.jwt.signers.sign(userPayload)
-//     }
+        // Get auth token
+        let loginRequest = UserDTOs.LoginRequest(
+            email: "websocket-test@example.com",
+            password: "password123"
+        )
+        
+        let loginResponse = try await app.sendRequest(.POST, "auth/login", body: loginRequest)
+        let loginResult = try loginResponse.content.decode(UserDTOs.TokenResponse.self)
+        authToken = loginResult.token
+    }
     
-//     override func tearDown() async throws {
-//         // Clean up the database
-//         try await User.query(on: app.db).delete()
-//         try await FeatureFlag.query(on: app.db).delete()
-//         try await UserFeatureFlag.query(on: app.db).delete()
-//         try await app.asyncShutdown()
-//     }
+    override func tearDown() async throws {
+        app.shutdown()
+    }
     
-//     func testWebSocketConnection() async throws {
-//         // Given
-//         let expectation = XCTestExpectation(description: "WebSocket connection established")
-//         let storage = ActorWebSocketStorage()
+    func testWebSocketConnection() async throws {
+        // Create a WebSocket client
+        let client = WebSocketClient(eventLoop: app.eventLoopGroup.next())
         
-//         // When
-//         try await app.testable().test(.GET, "/ws/feature-flags", beforeRequest: { req in
-//             req.headers.bearerAuthorization = .init(token: userToken ?? "")
-//             req.headers.add(name: .upgrade, value: "websocket")
-//             req.headers.add(name: .connection, value: "upgrade")
-//             req.headers.add(name: .secWebSocketVersion, value: "13")
-//             req.headers.add(name: .secWebSocketKey, value: "dGhlIHNhbXBsZSBub25jZQ==")
-//             req.headers.add(name: .host, value: "127.0.0.1")
-//         }, afterResponse: { res in
-//             XCTAssertEqual(res.status, .switchingProtocols)
-//             XCTAssertEqual(res.headers[.connection].first?.lowercased(), "upgrade")
-//             XCTAssertEqual(res.headers[.upgrade].first?.lowercased(), "websocket")
-//             XCTAssertNotNil(res.headers[.secWebSocketAccept].first)
-//             expectation.fulfill()
-//         })
+        // Connect to the WebSocket endpoint
+        let promise = app.eventLoopGroup.next().makePromise(of: Void.self)
+        var receivedMessages: [String] = []
         
-//         await fulfillment(of: [expectation], timeout: 5.0)
-//     }
-    
-//     func testWebSocketConnectionUnauthorized() async throws {
-//         // When/Then
-//         try await app.testable().test(.GET, "/ws/feature-flags", beforeRequest: { req in
-//             req.headers.add(name: .upgrade, value: "websocket")
-//             req.headers.add(name: .connection, value: "upgrade")
-//             req.headers.add(name: .secWebSocketVersion, value: "13")
-//             req.headers.add(name: .secWebSocketKey, value: "dGhlIHNhbXBsZSBub25jZQ==")
-//             req.headers.add(name: .host, value: "127.0.0.1")
-//         }, afterResponse: { res in
-//             XCTAssertEqual(res.status, .unauthorized)
-//         })
-//     }
-// }
+        let headers: HTTPHeaders = [
+            "Authorization": "Bearer \(authToken!)"
+        ]
+        
+        try await client.connect(to: "ws://localhost:8080/flags/socket", headers: headers) { ws in
+            ws.onText { _, text in
+                receivedMessages.append(text)
+                if receivedMessages.count >= 3 {
+                    promise.succeed(())
+                }
+            }
+            
+            // Create a feature flag
+            Task {
+                do {
+                    let createFlag = FeatureFlagDTOs.CreateRequest(
+                        key: "test-websocket-flag",
+                        name: "Test WebSocket Flag",
+                        description: "A flag for testing WebSockets",
+                        defaultValue: "true",
+                        enabled: true
+                    )
+                    
+                    // Create the flag
+                    let createResponse = try await self.app.sendRequest(
+                        .POST,
+                        "feature-flags",
+                        headers: ["Authorization": "Bearer \(self.authToken!)"],
+                        body: createFlag
+                    )
+                    
+                    let flag = try createResponse.content.decode(FeatureFlag.self)
+                    
+                    // Update the flag
+                    let updateFlag = FeatureFlagDTOs.UpdateRequest(
+                        key: "test-websocket-flag",
+                        name: "Updated Test WebSocket Flag",
+                        description: "An updated flag for testing WebSockets",
+                        defaultValue: "false",
+                        enabled: false
+                    )
+                    
+                    _ = try await self.app.sendRequest(
+                        .PUT,
+                        "feature-flags/\(flag.id!)",
+                        headers: ["Authorization": "Bearer \(self.authToken!)"],
+                        body: updateFlag
+                    )
+                    
+                    // Delete the flag
+                    _ = try await self.app.sendRequest(
+                        .DELETE,
+                        "feature-flags/\(flag.id!)",
+                        headers: ["Authorization": "Bearer \(self.authToken!)"]
+                    )
+                } catch {
+                    promise.fail(error)
+                }
+            }
+        }
+        
+        // Wait for the promise to be fulfilled
+        try await promise.futureResult.get()
+        
+        // Verify we received the expected messages
+        XCTAssertEqual(receivedMessages.count, 3)
+        
+        // Verify the message contents
+        XCTAssertTrue(receivedMessages[0].contains("feature_flag.created"))
+        XCTAssertTrue(receivedMessages[1].contains("feature_flag.updated"))
+        XCTAssertTrue(receivedMessages[2].contains("feature_flag.deleted"))
+    }
+}
 
-// // Thread-safe actor to store WebSocket reference
-// private actor ActorWebSocketStorage {
-//     private var webSocket: WebSocket?
-    
-//     func setWebSocket(_ ws: WebSocket) {
-//         self.webSocket = ws
-//     }
-    
-//     func getWebSocket() -> WebSocket? {
-//         self.webSocket
-//     }
-// }
+// Helper extension for testing
+extension Application {
+    static func testable() async throws -> Application {
+        let app = Application(.testing)
+        try await configure(app)
+        
+        try app.autoMigrate().wait()
+        
+        return app
+    }
+}
+
+extension XCTApplicationTester {
+    @discardableResult
+    func sendRequest(
+        _ method: HTTPMethod,
+        _ path: String,
+        headers: [String: String] = [:],
+        body: Encodable? = nil
+    ) async throws -> XCTHTTPResponse {
+        var request = XCTHTTPRequest(
+            method: method,
+            url: .init(path: path)
+        )
+        
+        // Add headers
+        for (key, value) in headers {
+            request.headers.add(name: key, value: value)
+        }
+        
+        // Add body if provided
+        if let body = body {
+            request.body = try JSONEncoder().encode(body)
+            request.headers.contentType = .json
+        }
+        
+        return try await performTest(request)
+    }
+}
