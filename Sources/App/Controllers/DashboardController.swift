@@ -19,6 +19,28 @@ struct DashboardController: RouteCollection {
         flags.post(":id", "delete", use: delete)
     }
     
+    // MARK: - Context Structs
+    
+    // Dashboard context with feature flags
+    struct DashboardContext: Content {
+        var title: String
+        var isAuthenticated: Bool
+        var error: String?
+        var recoverySuggestion: String?
+        var success: String?
+        var flags: [FeatureFlag]
+    }
+    
+    // Feature flag form context
+    struct FeatureFlagFormContext: Content {
+        var title: String
+        var isAuthenticated: Bool
+        var error: String?
+        var recoverySuggestion: String?
+        var success: String?
+        var flag: FeatureFlag?
+    }
+    
     // MARK: - View Handlers
     
     @Sendable
@@ -44,117 +66,210 @@ struct DashboardController: RouteCollection {
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
             req.logger.debug("Authentication failed, redirecting to login")
-            throw BanderaError.authenticationRequired
+            throw AuthenticationError.authenticationRequired
         }
         
         // Get user-specific flags using the feature flag service
-        let userFlags = try await req.services.featureFlagService.getFlagsWithOverrides(userId: userId.uuidString)
+        let featureFlags = try await req.services.featureFlagService.getAllFlags(userId: userId)
         
-        // Convert FeatureFlag.Response objects to FeatureFlag objects
-        let featureFlags = Array(userFlags.flags.values).map { response in
-            FeatureFlag(
-                id: response.id,
-                key: response.key,
-                type: response.type,
-                defaultValue: response.value,
-                description: response.description,
-                userId: userId
-            )
-        }
+        // Create the context with the feature flags
+        let context = ViewContext(title: "Dashboard")
         
-        let context = ViewContextDTOs.DashboardContext(flags: featureFlags, isAuthenticated: true)
-        return try await req.view.render("dashboard", context)
+        // Create the dashboard context
+        let dashboardContext = DashboardContext(
+            title: context.title,
+            isAuthenticated: true,
+            error: context.error,
+            recoverySuggestion: context.recoverySuggestion,
+            success: context.success,
+            flags: featureFlags
+        )
+        
+        // Render the dashboard template
+        return try await req.view.render("dashboard", dashboardContext)
     }
     
     @Sendable
     func createForm(req: Request) async throws -> View {
-        let context = ViewContextDTOs.FeatureFlagFormContext(isAuthenticated: true)
-        return try await req.view.render("feature-flag-form", context)
+        // Create the context for the form
+        let context = ViewContext(title: "Create Feature Flag")
+        
+        // Create the form context
+        let formContext = FeatureFlagFormContext(
+            title: context.title,
+            isAuthenticated: true,
+            error: context.error,
+            recoverySuggestion: context.recoverySuggestion,
+            success: context.success,
+            flag: nil
+        )
+        
+        // Render the feature flag form template
+        return try await req.view.render("feature-flag-form", formContext)
     }
     
     @Sendable
     func editForm(req: Request) async throws -> View {
-        // Get the authenticated user
-        guard let payload = req.auth.get(UserJWTPayload.self),
-              let userId = UUID(payload.subject.value),
-              let flagId = req.parameters.get("id", as: UUID.self) else {
-            throw BanderaError.resourceNotFound("Feature flag")
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
         }
         
-        // Get the flag using the feature flag service
-        let flag = try await req.services.featureFlagService.getFlag(id: flagId, userId: userId)
+        // Get the authenticated user
+        guard let payload = req.auth.get(UserJWTPayload.self),
+              let userId = UUID(payload.subject.value) else {
+            throw AuthenticationError.authenticationRequired
+        }
         
-        let context = ViewContextDTOs.FeatureFlagFormContext(flag: flag, isAuthenticated: true)
-        return try await req.view.render("feature-flag-form", context)
+        // Get the feature flag
+        let flag = try await req.services.featureFlagService.getFlag(id: id, userId: userId)
+        if flag.id == nil {
+            throw ResourceError.notFound("feature flag")
+        }
+        
+        // Create the context with the feature flag
+        let context = ViewContext(title: "Edit Feature Flag")
+        
+        // Create the form context
+        let formContext = FeatureFlagFormContext(
+            title: context.title,
+            isAuthenticated: true,
+            error: context.error,
+            recoverySuggestion: context.recoverySuggestion,
+            success: context.success,
+            flag: flag
+        )
+        
+        // Render the feature flag form template
+        return try await req.view.render("feature-flag-form", formContext)
     }
     
-    // MARK: - Action Handlers
+    // MARK: - Form Handlers
     
     @Sendable
     func create(req: Request) async throws -> Response {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw BanderaError.authenticationRequired
+            throw AuthenticationError.authenticationRequired
         }
         
+        // Validate and decode the form data
         try FeatureFlagDTOs.CreateRequest.validate(content: req)
         let create = try req.content.decode(FeatureFlagDTOs.CreateRequest.self)
         
         do {
-            // Use the feature flag service to create the flag
+            // Create the feature flag
             _ = try await req.services.featureFlagService.createFlag(create, userId: userId)
+            
+            // Redirect to the dashboard with a success message
+            var context = ViewContext(title: "Dashboard")
+            context.isAuthenticated = true
+            context.success = "Feature flag created successfully"
+            
             return req.redirect(to: "/dashboard")
-        } catch BanderaError.resourceAlreadyExists {
-            // Handle the case where the flag already exists
-            let context = ViewContextDTOs.FeatureFlagFormContext(
-                create: create,
-                isAuthenticated: true,
-                error: "A feature flag with this key already exists"
+        } catch {
+            // If there's an error, render the form again with the error message
+            let context = ViewContext(title: "Create Feature Flag")
+            
+            // Create a feature flag from the form data
+            let flag = FeatureFlag(
+                key: create.key,
+                type: create.type,
+                defaultValue: create.defaultValue,
+                description: create.description
             )
-            return try await req.view.render("feature-flag-form", context).encodeResponse(for: req)
+            
+            // Create the form context
+            let formContext = FeatureFlagFormContext(
+                title: context.title,
+                isAuthenticated: true,
+                error: error.localizedDescription,
+                recoverySuggestion: context.recoverySuggestion,
+                success: context.success,
+                flag: flag
+            )
+            
+            // Render the form with the error and flag data
+            return try await req.view.render("feature-flag-form", formContext).encodeResponse(for: req)
         }
     }
     
     @Sendable
     func update(req: Request) async throws -> Response {
-        // Get the authenticated user
-        guard let payload = req.auth.get(UserJWTPayload.self),
-              let userId = UUID(payload.subject.value),
-              let flagId = req.parameters.get("id", as: UUID.self) else {
-            throw BanderaError.resourceNotFound("Feature flag")
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
         }
         
+        // Get the authenticated user
+        guard let payload = req.auth.get(UserJWTPayload.self),
+              let userId = UUID(payload.subject.value) else {
+            throw AuthenticationError.authenticationRequired
+        }
+        
+        // Validate and decode the form data
         try FeatureFlagDTOs.UpdateRequest.validate(content: req)
-        var update = try req.content.decode(FeatureFlagDTOs.UpdateRequest.self)
-        update.id = flagId  // Set the ID from the URL parameter
+        let update = try req.content.decode(FeatureFlagDTOs.UpdateRequest.self)
         
         do {
-            // Use the feature flag service to update the flag
-            _ = try await req.services.featureFlagService.updateFlag(id: flagId, update, userId: userId)
+            // Update the feature flag
+            _ = try await req.services.featureFlagService.updateFlag(id: id, update, userId: userId)
+            
+            // Redirect to the dashboard with a success message
+            var context = ViewContext(title: "Dashboard")
+            context.isAuthenticated = true
+            context.success = "Feature flag updated successfully"
+            
             return req.redirect(to: "/dashboard")
-        } catch BanderaError.resourceAlreadyExists {
-            // Handle the case where the flag with the new key already exists
-            let context = ViewContextDTOs.FeatureFlagFormContext(
-                update: update,
-                isAuthenticated: true,
-                error: "A feature flag with this key already exists"
+        } catch {
+            // If there's an error, render the form again with the error message
+            let context = ViewContext(title: "Edit Feature Flag")
+            
+            // Create a feature flag from the form data
+            let flag = FeatureFlag(
+                id: id,
+                key: update.key,
+                type: update.type,
+                defaultValue: update.defaultValue,
+                description: update.description
             )
-            return try await req.view.render("feature-flag-form", context).encodeResponse(for: req)
+            
+            // Create the form context
+            let formContext = FeatureFlagFormContext(
+                title: context.title,
+                isAuthenticated: true,
+                error: error.localizedDescription,
+                recoverySuggestion: context.recoverySuggestion,
+                success: context.success,
+                flag: flag
+            )
+            
+            // Render the form with the error and flag data
+            return try await req.view.render("feature-flag-form", formContext).encodeResponse(for: req)
         }
     }
     
     @Sendable
     func delete(req: Request) async throws -> Response {
-        // Get the authenticated user
-        guard let payload = req.auth.get(UserJWTPayload.self),
-              let userId = UUID(payload.subject.value),
-              let flagId = req.parameters.get("id", as: UUID.self) else {
-            throw BanderaError.resourceNotFound("Feature flag")
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
         }
         
-        // Use the feature flag service to delete the flag
-        try await req.services.featureFlagService.deleteFlag(id: flagId, userId: userId)
+        // Get the authenticated user
+        guard let payload = req.auth.get(UserJWTPayload.self),
+              let userId = UUID(payload.subject.value) else {
+            throw AuthenticationError.authenticationRequired
+        }
+        
+        // Delete the feature flag
+        try await req.services.featureFlagService.deleteFlag(id: id, userId: userId)
+        
+        // Redirect to the dashboard with a success message
+        var context = ViewContext(title: "Dashboard")
+        context.isAuthenticated = true
+        context.success = "Feature flag deleted successfully"
         
         return req.redirect(to: "/dashboard")
     }

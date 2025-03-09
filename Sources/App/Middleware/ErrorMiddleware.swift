@@ -45,13 +45,21 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
         // Determine log level based on error type and status code
         let logLevel: Logger.Level
         let statusCode: UInt
+        let errorDomain: String?
         
-        if let abort = error as? AbortError {
-            statusCode = abort.status.code
-        } else if let banderaError = error as? BanderaError {
+        // Handle different error types
+        if let banderaError = error as? any BanderaErrorProtocol {
             statusCode = banderaError.status.code
+            errorDomain = banderaError.domain.rawValue
+        } else if let abort = error as? AbortError {
+            statusCode = abort.status.code
+            errorDomain = nil
+        } else if let legacyError = error as? LegacyBanderaError {
+            statusCode = legacyError.status.code
+            errorDomain = nil
         } else {
             statusCode = HTTPStatus.internalServerError.code
+            errorDomain = nil
         }
         
         // Set log level based on status code
@@ -73,6 +81,11 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
             "status_code": .string(String(statusCode)),
             "path": .string(request.url.path)
         ]
+        
+        // Add error domain if available
+        if let domain = errorDomain {
+            metadata["error_domain"] = .string(domain)
+        }
         
         // Add request ID if available
         if let requestId = request.headers.first(name: "X-Request-ID") {
@@ -99,204 +112,140 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
     
     /// Builds a response for an error.
     /// - Parameters:
-    ///   - request: The request that caused the error.
-    ///   - error: The error itself.
-    /// - Returns: A response representing the error.
+    ///   - request: The request that caused the error
+    ///   - error: The error to build a response for
+    /// - Returns: The HTTP response
     private func buildErrorResponse(for request: Request, with error: Error) async -> Response {
-        // Determine error details
+        // Extract error information
         let status: HTTPStatus
         let reason: String
         let headers: HTTPHeaders
-        let recoverySuggestion: String?
+        var recoverySuggestion: String?
         
-        switch error {
-        case let abort as AbortError:
-            // This is an abort error, use its status, reason, and headers
-            reason = abort.reason
-            status = abort.status
-            headers = abort.headers
-            recoverySuggestion = nil
-            
-        case let banderaError as BanderaError:
-            // This is a BanderaError, use its status, reason, and headers
-            reason = banderaError.reason
+        // Handle different error types
+        if let banderaError = error as? any BanderaErrorProtocol {
             status = banderaError.status
+            reason = banderaError.reason
             headers = banderaError.headers
             recoverySuggestion = banderaError.recoverySuggestion
-            
-        case let validationError as ValidationsError:
-            // This is a validation error from Vapor's validator
-            let errors = validationError.failures.map { "\($0.key): \($0.result.failureDescription ?? "Invalid value")" }
-            let errorMessage = errors.joined(separator: ", ")
-            reason = "Validation failed: \(errorMessage)"
-            status = .badRequest
-            headers = [:]
-            recoverySuggestion = "Please check your input and try again."
-            
-        case let decodingError as DecodingError:
-            // This is a decoding error from Codable
-            reason = self.formatDecodingError(decodingError)
-            status = .badRequest
-            headers = [:]
-            recoverySuggestion = "Please check your input format and try again."
-            
-        default:
-            // For any other error, return a 500 Internal Server Error
-            // In production, hide the actual error details
-            reason = self.environment.isRelease
-                ? "An internal server error occurred"
-                : String(describing: error)
-            status = .internalServerError
-            headers = [:]
-            recoverySuggestion = "Please try again later or contact support if the problem persists."
-        }
-        
-        // Create a Response with appropriate status and headers
-        var response = Response(status: status)
-        response.headers = headers
-        
-        // Determine the best response type based on the request's Accept header
-        if request.headers.accept.contains(where: { $0.mediaType == .json }) {
-            // Return a JSON response
-            return self.createJSONErrorResponse(
-                status: status,
-                reason: reason,
-                recoverySuggestion: recoverySuggestion,
-                request: request,
-                error: error
-            )
-        } else if request.headers.accept.contains(where: { $0.mediaType == .html }) {
-            // For HTML requests, try to render an error page
-            return await self.createHTMLErrorResponse(
-                status: status,
-                reason: reason,
-                recoverySuggestion: recoverySuggestion,
-                request: request
-            )
+        } else if let abort = error as? AbortError {
+            status = abort.status
+            reason = abort.reason
+            headers = abort.headers
+        } else if let legacyError = error as? LegacyBanderaError {
+            status = legacyError.status
+            reason = legacyError.reason
+            headers = legacyError.headers
+            recoverySuggestion = legacyError.recoverySuggestion
         } else {
-            // Default to a plain text response
-            return self.createPlainTextErrorResponse(
-                status: status,
-                reason: reason,
-                recoverySuggestion: recoverySuggestion
-            )
+            status = .internalServerError
+            reason = "Something went wrong."
+            headers = [:]
+        }
+        
+        // Create a response with the appropriate status
+        let response = Response(status: status, headers: headers)
+        
+        // Get the request ID if available
+        let requestId = request.headers.first(name: "X-Request-ID")
+        
+        // Determine the response format based on the Accept header
+        let accept = request.headers[.accept].first ?? "application/json"
+        
+        if accept.contains("text/html") {
+            // HTML response
+            return await self.buildHTMLResponse(request, response, reason: reason, suggestion: recoverySuggestion, requestId: requestId, error: error)
+        } else if accept.contains("application/json") {
+            // JSON response
+            return self.buildJSONResponse(response, reason: reason, suggestion: recoverySuggestion, requestId: requestId, error: error)
+        } else {
+            // Plain text response
+            return self.buildTextResponse(response, reason: reason, suggestion: recoverySuggestion)
         }
     }
     
-    /// Creates a JSON error response.
+    // MARK: - Response Builders
+    
+    /// Builds an HTML response for an error.
     /// - Parameters:
-    ///   - status: The HTTP status code
-    ///   - reason: The error reason
-    ///   - recoverySuggestion: Optional recovery suggestion
     ///   - request: The request that caused the error
+    ///   - response: The base response
+    ///   - reason: The reason for the error
+    ///   - suggestion: Optional recovery suggestion
+    ///   - requestId: Optional request ID
     ///   - error: The original error
-    /// - Returns: A JSON response
-    private func createJSONErrorResponse(
-        status: HTTPStatus,
-        reason: String,
-        recoverySuggestion: String?,
-        request: Request,
-        error: Error
-    ) -> Response {
-        var response = Response(status: status)
-        
+    /// - Returns: The HTML response
+    private func buildHTMLResponse(_ request: Request, _ response: Response, reason: String, suggestion: String?, requestId: String?, error: Error) async -> Response {
+        // Try to render the error page using Leaf
         do {
-            // Create the error response object
-            var errorResponse = ErrorResponse(
-                error: true,
+            // Create view context
+            var context = ViewContext.error(
+                status: response.status.code,
                 reason: reason,
-                statusCode: status.code
+                suggestion: suggestion,
+                requestId: requestId
             )
             
-            // Add recovery suggestion if available
-            if let suggestion = recoverySuggestion {
-                errorResponse.recoverySuggestion = suggestion
+            // Add debug info in development
+            if environment == .development {
+                context.debugInfo = String(describing: error)
             }
             
-            // Add request ID if available
-            if let requestId = request.headers.first(name: "X-Request-ID") {
-                errorResponse.requestId = requestId
-            }
-            
-            // Add stack trace in development mode
-            if !self.environment.isRelease {
-                errorResponse.debugInfo = String(describing: error)
-            }
-            
-            // Encode the response
-            response.body = try .init(data: JSONEncoder().encode(errorResponse))
-            response.headers.contentType = .json
-            return response
-        } catch {
-            // If encoding fails, fall back to a plain text response
-            return self.createPlainTextErrorResponse(
-                status: status,
-                reason: reason,
-                recoverySuggestion: recoverySuggestion
-            )
-        }
-    }
-    
-    /// Creates an HTML error response.
-    /// - Parameters:
-    ///   - status: The HTTP status code
-    ///   - reason: The error reason
-    ///   - recoverySuggestion: Optional recovery suggestion
-    ///   - request: The request that caused the error
-    /// - Returns: An HTML response
-    private func createHTMLErrorResponse(
-        status: HTTPStatus,
-        reason: String,
-        recoverySuggestion: String?,
-        request: Request
-    ) async -> Response {
-        var response = Response(status: status)
-        
-        do {
-            // Create the error context for the template
-            let errorContext = ViewContextDTOs.BaseContext(
-                title: "Error \(status.code)",
-                error: reason,
-                recoverySuggestion: recoverySuggestion
-            )
-            
-            // Try to render the error page
-            let viewFuture = request.view.render("error", errorContext)
+            // Render the error page
             response.headers.contentType = .html
-            
-            // Convert the view to a string and set it as the response body
-            let viewString = try await viewFuture.get().data.getString(at: 0, length: viewFuture.get().data.readableBytes)
-            response.body = .init(string: viewString ?? reason)
-            
-            return response
+            return try await request.view.render("error", context).encodeResponse(for: request)
         } catch {
-            // If rendering fails, fall back to a plain text response
-            return self.createPlainTextErrorResponse(
-                status: status,
-                reason: reason,
-                recoverySuggestion: recoverySuggestion
-            )
+            // Fall back to plain text if rendering fails
+            return buildTextResponse(response, reason: reason, suggestion: suggestion)
         }
     }
     
-    /// Creates a plain text error response.
+    /// Builds a JSON response for an error.
     /// - Parameters:
-    ///   - status: The HTTP status code
-    ///   - reason: The error reason
-    ///   - recoverySuggestion: Optional recovery suggestion
-    /// - Returns: A plain text response
-    private func createPlainTextErrorResponse(
-        status: HTTPStatus,
-        reason: String,
-        recoverySuggestion: String?
-    ) -> Response {
-        var response = Response(status: status)
+    ///   - response: The base response
+    ///   - reason: The reason for the error
+    ///   - suggestion: Optional recovery suggestion
+    ///   - requestId: Optional request ID
+    ///   - error: The original error
+    /// - Returns: The JSON response
+    private func buildJSONResponse(_ response: Response, reason: String, suggestion: String?, requestId: String?, error: Error) -> Response {
+        // Create error response
+        var errorResponse = ErrorResponse(
+            error: true,
+            reason: reason,
+            statusCode: response.status.code,
+            recoverySuggestion: suggestion,
+            requestId: requestId
+        )
         
-        // Build the error message
-        var message = "Error \(status.code): \(reason)"
+        // Add debug info in development
+        if environment == .development {
+            errorResponse.debugInfo = String(describing: error)
+        }
         
-        // Add recovery suggestion if available
-        if let suggestion = recoverySuggestion {
+        // Encode the response
+        do {
+            response.headers.contentType = .json
+            response.body = try .init(data: JSONEncoder().encode(errorResponse))
+            return response
+        } catch {
+            // Fall back to plain text if encoding fails
+            return buildTextResponse(response, reason: reason, suggestion: suggestion)
+        }
+    }
+    
+    /// Builds a plain text response for an error.
+    /// - Parameters:
+    ///   - response: The base response
+    ///   - reason: The reason for the error
+    ///   - suggestion: Optional recovery suggestion
+    /// - Returns: The plain text response
+    private func buildTextResponse(_ response: Response, reason: String, suggestion: String?) -> Response {
+        // Create plain text message
+        var message = "Error \(response.status.code): \(reason)"
+        
+        // Add suggestion if available
+        if let suggestion = suggestion {
             message += "\n\n\(suggestion)"
         }
         

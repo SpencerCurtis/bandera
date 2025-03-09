@@ -15,12 +15,14 @@ struct AuthController: RouteCollection {
     // Show login page
     @Sendable
     func loginPage(req: Request) async throws -> View {
-        return try await req.view.render(
-            "login",
-            ViewContextDTOs.LoginContext(
-                error: req.query[String.self, at: "error"]
-            )
-        )
+        var context = ViewContext(title: "Login")
+        
+        // Check if there's an error query parameter
+        if let errorMessage = req.query[String.self, at: "error"] {
+            context.error = errorMessage
+        }
+        
+        return try await req.view.render("login", context)
     }
     
     // Registration endpoint
@@ -39,24 +41,42 @@ struct AuthController: RouteCollection {
         try DTOs.LoginRequest.validate(content: req)
         let loginRequest = try req.content.decode(DTOs.LoginRequest.self)
         
-        // Use the auth service to login the user
-        let authResponse = try await req.services.authService.login(loginRequest)
-        
-        // Check if this is an API call or a web request
-        if req.headers.accept.first?.mediaType == .json {
-            // API call, return JSON response
-            return Response(status: .ok, body: .init(data: try JSONEncoder().encode(authResponse)))
-        } else {
-            // Web request, set cookie and redirect
-            let response = req.redirect(to: "/dashboard")
-            response.cookies["vapor-auth-token"] = .init(
-                string: authResponse.token,
-                expires: Date().addingTimeInterval(86400), // 24 hours
-                isSecure: true,
-                isHTTPOnly: true,
-                sameSite: .lax
-            )
-            return response
+        do {
+            // Use the auth service to login the user
+            let authResponse = try await req.services.authService.login(loginRequest)
+            
+            // Check if this is an API call or a web request
+            if req.headers.accept.first?.mediaType == .json {
+                // API call, return JSON response
+                return Response(status: .ok, body: .init(data: try JSONEncoder().encode(authResponse)))
+            } else {
+                // Web request, set cookie and redirect
+                var response = req.redirect(to: "/dashboard")
+                response.cookies["vapor-auth-token"] = .init(
+                    string: authResponse.token,
+                    expires: Date().addingTimeInterval(86400), // 24 hours
+                    isSecure: true,
+                    isHTTPOnly: true
+                )
+                return response
+            }
+        } catch {
+            // Handle authentication errors
+            if req.headers.accept.first?.mediaType == .json {
+                // API call, return JSON error
+                let errorResponse = ErrorResponse(
+                    error: true,
+                    reason: error.localizedDescription,
+                    statusCode: 401
+                )
+                return Response(
+                    status: .unauthorized,
+                    body: .init(data: try JSONEncoder().encode(errorResponse))
+                )
+            } else {
+                // Web request, redirect to login page with error
+                return req.redirect(to: "/auth/login?error=\(error.localizedDescription.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Invalid credentials")")
+            }
         }
     }
     
@@ -64,18 +84,20 @@ struct AuthController: RouteCollection {
     @Sendable
     func logout(req: Request) async throws -> Response {
         // Clear the auth cookie
-        let response = req.redirect(to: "/auth/login")
+        var response = req.redirect(to: "/auth/login")
         response.cookies["vapor-auth-token"] = .init(
             string: "",
             expires: Date(timeIntervalSince1970: 0),
             isSecure: true,
-            isHTTPOnly: true,
-            sameSite: .lax
+            isHTTPOnly: true
         )
-        
-        // Destroy session
-        req.session.destroy()
-        
         return response
     }
+}
+
+// Helper struct for error responses
+private struct ErrorResponse: Content {
+    let error: Bool
+    let reason: String
+    let statusCode: UInt
 } 

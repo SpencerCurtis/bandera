@@ -152,26 +152,46 @@ enum ViewContextDTOs {
     
     // MARK: - Error Context
     
-    /// Context for the error view
+    /// Context for error pages
+    ///
+    /// This context is used for rendering error pages with detailed
+    /// information about the error that occurred.
     struct ErrorContext: Content {
-        /// Base context
-        let base: BaseContext
+        /// Page title
+        let title: String
         
         /// HTTP status code
-        let status: Int
+        let statusCode: UInt
         
-        /// Error reason
+        /// Error message
         let reason: String
         
-        /// Initialize an error context
-        init(status: Int, reason: String, isAuthenticated: Bool = false) {
-            self.base = BaseContext(
-                title: "Error \(status)",
-                isAuthenticated: isAuthenticated,
-                error: reason
-            )
-            self.status = status
+        /// Optional recovery suggestion
+        let recoverySuggestion: String?
+        
+        /// Optional request ID for tracking
+        let requestId: String?
+        
+        /// Optional debug information (only shown in development)
+        var debugInfo: String?
+        
+        /// Initialize with error details
+        /// - Parameters:
+        ///   - statusCode: The HTTP status code
+        ///   - reason: The error message
+        ///   - recoverySuggestion: Optional recovery suggestion
+        ///   - requestId: Optional request ID for tracking
+        init(
+            statusCode: UInt,
+            reason: String,
+            recoverySuggestion: String? = nil,
+            requestId: String? = nil
+        ) {
+            self.title = "Error \(statusCode)"
+            self.statusCode = statusCode
             self.reason = reason
+            self.recoverySuggestion = recoverySuggestion
+            self.requestId = requestId
         }
     }
 } 
