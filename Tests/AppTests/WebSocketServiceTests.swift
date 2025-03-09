@@ -33,14 +33,11 @@ final class WebSocketServiceTests: XCTestCase {
     }
     
     override func tearDown() async throws {
-        // Use a detached task to call shutdown to avoid async context warning
-        let app = self.app
-        self.app = nil
-        
-        // Shutdown in a detached task to avoid blocking
-        Task.detached {
-            app?.shutdown()
+        // Store app locally before setting to nil
+        if let app = self.app {
+            try await app.asyncShutdown()
         }
+        self.app = nil
     }
     
     func testServiceContainer() async throws {

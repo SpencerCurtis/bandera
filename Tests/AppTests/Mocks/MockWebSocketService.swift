@@ -37,6 +37,32 @@ final class MockWebSocketService: WebSocketServiceProtocol {
     
     func broadcast<T: Codable & Sendable>(event: String, data: T) async throws {
         broadcastedEvents.append((event: event, data: data))
+        
+        // Handle feature flag events
+        if event.contains("feature_flag.") {
+            if let payload = data as? FeatureFlagEventPayload {
+                // For created and updated events
+                if event == FeatureFlagEventType.created.rawValue || event == FeatureFlagEventType.updated.rawValue {
+                    // Extract the flag from the payload
+                    let flag = FeatureFlag(
+                        id: payload.flag.id,
+                        key: payload.flag.key,
+                        type: payload.flag.type,
+                        defaultValue: payload.flag.value,
+                        description: payload.flag.description
+                    )
+                    
+                    // Add to the broadcastedFeatureFlagEvents array
+                    broadcastedFeatureFlagEvents.append((flag: flag, userId: "test-user", eventType: event))
+                }
+            } else if let payload = data as? FeatureFlagDeleteEventPayload {
+                // For deleted events
+                if event == FeatureFlagEventType.deleted.rawValue {
+                    // Add to the broadcastedFeatureFlagDeletions array
+                    broadcastedFeatureFlagDeletions.append((id: payload.flagId, userId: "test-user"))
+                }
+            }
+        }
     }
     
     func send(message: String, to id: UUID) async throws {

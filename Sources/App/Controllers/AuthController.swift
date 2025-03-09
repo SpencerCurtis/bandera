@@ -4,7 +4,8 @@ import JWT
 
 struct AuthController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        let auth = routes.grouped("auth")
+        // Use optional authentication for auth routes
+        let auth = routes.grouped(AuthMiddleware.optional).grouped("auth")
         
         auth.get("login", use: loginPage)
         auth.post("login", use: login)

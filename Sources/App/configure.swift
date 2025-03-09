@@ -21,9 +21,6 @@ public func configure(_ app: Application) async throws {
     // Register custom error middleware (should be first in the chain)
     app.registerErrorMiddleware()
     
-    // Add unified authentication middleware
-    app.middleware.use(AuthMiddleware.standard)
-
     // MARK: - Database Configuration
     
     // Configure SQLite database for development and testing
@@ -50,6 +47,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateFeatureFlag())
     app.migrations.add(CreateUserFeatureFlag())
     app.migrations.add(AddUserIdToFeatureFlag())
+    app.migrations.add(AddUpdatedAtToUser())
 
     // Add admin user in non-testing environments
     if app.environment != .testing {

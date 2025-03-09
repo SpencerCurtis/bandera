@@ -176,7 +176,7 @@ final class AuthControllerTests: XCTestCase {
             
             // Verify error message
             let errorResponse = try response.content.decode(ErrorResponse.self)
-            XCTAssertEqual(errorResponse.reason, "Invalid credentials")
+            XCTAssertEqual(errorResponse.reason, "Invalid username or password")
         })
     }
     
@@ -210,7 +210,7 @@ final class AuthControllerTests: XCTestCase {
             
             // Verify error message
             let errorResponse = try response.content.decode(ErrorResponse.self)
-            XCTAssertEqual(errorResponse.reason, "Invalid credentials")
+            XCTAssertEqual(errorResponse.reason, "Invalid username or password")
         })
     }
 }

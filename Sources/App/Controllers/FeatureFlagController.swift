@@ -8,14 +8,15 @@ struct FeatureFlagController: RouteCollection {
         let protected = routes.grouped(AuthMiddleware.standard)
         let featureFlags = protected.grouped("feature-flags")
         
-        // User routes
+        // User routes - require authentication but not admin
         featureFlags.get("user", ":userId", use: getForUser)
         featureFlags.get(use: list)
         
-        // User-specific routes (no admin required)
-        featureFlags.post(use: create)
-        featureFlags.put(":id", use: update)
-        featureFlags.delete(":id", use: delete)
+        // Admin routes - require admin role
+        let adminProtected = featureFlags.grouped(RoleAuthMiddleware())
+        adminProtected.post(use: create)
+        adminProtected.put(":id", use: update)
+        adminProtected.delete(":id", use: delete)
     }
     
     // MARK: - User Routes
