@@ -27,9 +27,9 @@ struct AuthController: RouteCollection {
     
     // Registration endpoint
     @Sendable
-    func register(req: Request) async throws -> DTOs.AuthResponse {
-        try DTOs.RegisterRequest.validate(content: req)
-        let registerRequest = try req.content.decode(DTOs.RegisterRequest.self)
+    func register(req: Request) async throws -> AuthResponse {
+        try RegisterRequest.validate(content: req)
+        let registerRequest = try req.content.decode(RegisterRequest.self)
         
         // Use the auth service to register the user
         return try await req.services.authService.register(registerRequest)
@@ -38,8 +38,8 @@ struct AuthController: RouteCollection {
     // Login endpoint
     @Sendable
     func login(req: Request) async throws -> Response {
-        try DTOs.LoginRequest.validate(content: req)
-        let loginRequest = try req.content.decode(DTOs.LoginRequest.self)
+        try LoginRequest.validate(content: req)
+        let loginRequest = try req.content.decode(LoginRequest.self)
         
         do {
             // Use the auth service to login the user
@@ -48,34 +48,28 @@ struct AuthController: RouteCollection {
             // Check if this is an API call or a web request
             if req.headers.accept.first?.mediaType == .json {
                 // API call, return JSON response
-                return Response(status: .ok, body: .init(data: try JSONEncoder().encode(authResponse)))
+                return try await authResponse.encodeResponse(for: req)
             } else {
-                // Web request, set cookie and redirect
-                var response = req.redirect(to: "/dashboard")
+                // Web request, set cookie and redirect to dashboard
+                let response = req.redirect(to: "/dashboard")
                 response.cookies["vapor-auth-token"] = .init(
                     string: authResponse.token,
                     expires: Date().addingTimeInterval(86400), // 24 hours
                     isSecure: true,
-                    isHTTPOnly: true
+                    isHTTPOnly: true,
+                    sameSite: .lax
                 )
                 return response
             }
         } catch {
-            // Handle authentication errors
+            // Check if this is an API call or a web request
             if req.headers.accept.first?.mediaType == .json {
                 // API call, return JSON error
-                let errorResponse = ErrorResponse(
-                    error: true,
-                    reason: error.localizedDescription,
-                    statusCode: 401
-                )
-                return Response(
-                    status: .unauthorized,
-                    body: .init(data: try JSONEncoder().encode(errorResponse))
-                )
+                throw error
             } else {
                 // Web request, redirect to login page with error
-                return req.redirect(to: "/auth/login?error=\(error.localizedDescription.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Invalid credentials")")
+                let errorMessage = (error as? any BanderaErrorProtocol)?.reason ?? "Invalid credentials"
+                return req.redirect(to: "/auth/login?error=\(errorMessage.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")
             }
         }
     }
@@ -84,12 +78,13 @@ struct AuthController: RouteCollection {
     @Sendable
     func logout(req: Request) async throws -> Response {
         // Clear the auth cookie
-        var response = req.redirect(to: "/auth/login")
+        let response = req.redirect(to: "/auth/login")
         response.cookies["vapor-auth-token"] = .init(
             string: "",
-            expires: Date(timeIntervalSince1970: 0),
+            expires: Date().addingTimeInterval(-86400), // Expired
             isSecure: true,
-            isHTTPOnly: true
+            isHTTPOnly: true,
+            sameSite: .lax
         )
         return response
     }

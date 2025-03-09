@@ -18,14 +18,14 @@ protocol FeatureFlagServiceProtocol {
     /// Get all feature flags with their overrides for a user
     /// - Parameter userId: The unique identifier of the user
     /// - Returns: A container with all feature flags and their overrides for the user
-    func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagDTOs.FlagsContainer
+    func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer
     
     /// Create a new feature flag
     /// - Parameters:
     ///   - dto: The DTO with feature flag data
     ///   - userId: The unique identifier of the user creating the flag
     /// - Returns: The created feature flag
-    func createFlag(_ dto: FeatureFlagDTOs.CreateRequest, userId: UUID) async throws -> FeatureFlag
+    func createFlag(_ dto: CreateFeatureFlagRequest, userId: UUID) async throws -> FeatureFlag
     
     /// Update a feature flag
     /// - Parameters:
@@ -33,7 +33,7 @@ protocol FeatureFlagServiceProtocol {
     ///   - dto: The DTO with updated feature flag data
     ///   - userId: The unique identifier of the user updating the flag
     /// - Returns: The updated feature flag
-    func updateFlag(id: UUID, _ dto: FeatureFlagDTOs.UpdateRequest, userId: UUID) async throws -> FeatureFlag
+    func updateFlag(id: UUID, _ dto: UpdateFeatureFlagRequest, userId: UUID) async throws -> FeatureFlag
     
     /// Delete a feature flag
     /// - Parameters:
@@ -45,7 +45,7 @@ protocol FeatureFlagServiceProtocol {
     /// - Parameters:
     ///   - event: The event type
     ///   - flag: The feature flag
-    func broadcastEvent(_ event: WebSocketDTOs.FeatureFlagEvent, flag: FeatureFlag) async throws
+    func broadcastEvent(_ event: FeatureFlagEventType, flag: FeatureFlag) async throws
     
     /// Broadcast a feature flag deletion event
     /// - Parameters:

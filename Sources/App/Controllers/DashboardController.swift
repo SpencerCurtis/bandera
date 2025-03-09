@@ -155,8 +155,8 @@ struct DashboardController: RouteCollection {
         }
         
         // Validate and decode the form data
-        try FeatureFlagDTOs.CreateRequest.validate(content: req)
-        let create = try req.content.decode(FeatureFlagDTOs.CreateRequest.self)
+        try CreateFeatureFlagRequest.validate(content: req)
+        let create = try req.content.decode(CreateFeatureFlagRequest.self)
         
         do {
             // Create the feature flag
@@ -209,8 +209,8 @@ struct DashboardController: RouteCollection {
         }
         
         // Validate and decode the form data
-        try FeatureFlagDTOs.UpdateRequest.validate(content: req)
-        let update = try req.content.decode(FeatureFlagDTOs.UpdateRequest.self)
+        try UpdateFeatureFlagRequest.validate(content: req)
+        let update = try req.content.decode(UpdateFeatureFlagRequest.self)
         
         do {
             // Update the feature flag

@@ -12,7 +12,7 @@ final class WebSocketTests: XCTestCase {
         app = try await Application.testable()
         
         // Create a test user
-        let createUser = UserDTOs.CreateRequest(
+        let createUser = CreateUserRequest(
             email: "websocket-test@example.com",
             password: "password123",
             name: "WebSocket Test User"
@@ -24,13 +24,13 @@ final class WebSocketTests: XCTestCase {
         )
         
         // Get auth token
-        let loginRequest = UserDTOs.LoginRequest(
+        let loginRequest = LoginRequest(
             email: "websocket-test@example.com",
             password: "password123"
         )
         
         let loginResponse = try await app.sendRequest(.POST, "auth/login", body: loginRequest)
-        let loginResult = try loginResponse.content.decode(UserDTOs.TokenResponse.self)
+        let loginResult = try loginResponse.content.decode(AuthResponse.self)
         authToken = loginResult.token
     }
     
@@ -61,7 +61,7 @@ final class WebSocketTests: XCTestCase {
             // Create a feature flag
             Task {
                 do {
-                    let createFlag = FeatureFlagDTOs.CreateRequest(
+                    let createFlag = CreateFeatureFlagRequest(
                         key: "test-websocket-flag",
                         name: "Test WebSocket Flag",
                         description: "A flag for testing WebSockets",
@@ -80,7 +80,7 @@ final class WebSocketTests: XCTestCase {
                     let flag = try createResponse.content.decode(FeatureFlag.self)
                     
                     // Update the flag
-                    let updateFlag = FeatureFlagDTOs.UpdateRequest(
+                    let updateFlag = UpdateFeatureFlagRequest(
                         key: "test-websocket-flag",
                         name: "Updated Test WebSocket Flag",
                         description: "An updated flag for testing WebSockets",

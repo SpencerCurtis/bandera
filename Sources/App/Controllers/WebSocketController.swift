@@ -9,7 +9,7 @@ struct WebSocketController: RouteCollection {
         // Add the WebSocket endpoint at flags/socket to match the client
         protected.get("flags", "socket") { req -> Response in
             guard let upgrade = req.headers[.upgrade].first?.lowercased(), upgrade == "websocket" else {
-                throw BanderaError.validationFailed("WebSocket upgrade required")
+                throw ValidationError.failed("WebSocket upgrade required")
             }
             
             return req.webSocket { req, ws in
@@ -33,7 +33,7 @@ struct WebSocketController: RouteCollection {
         let ws = protected.grouped("ws")
         ws.get("feature-flags") { req -> Response in
             guard let upgrade = req.headers[.upgrade].first?.lowercased(), upgrade == "websocket" else {
-                throw BanderaError.validationFailed("WebSocket upgrade required")
+                throw ValidationError.failed("WebSocket upgrade required")
             }
             
             return req.webSocket { req, ws in

@@ -49,7 +49,7 @@ final class AuthControllerTests: XCTestCase {
             print(response)
             XCTAssertEqual(response.status, HTTPStatus.ok)
             
-            let authResponse = try response.content.decode(AuthenticationDTOs.AuthResponse.self)
+            let authResponse = try response.content.decode(AuthResponse.self)
             XCTAssertNotNil(authResponse.token)
             XCTAssertEqual(authResponse.user.email, email)
             
@@ -106,7 +106,7 @@ final class AuthControllerTests: XCTestCase {
         ))
         try user.save(on: app.db).wait()
         
-        let loginData = try JSONEncoder().encode(AuthenticationDTOs.LoginRequest(
+        let loginData = try JSONEncoder().encode(LoginRequest(
             email: email,
             password: password
         ))
@@ -120,7 +120,7 @@ final class AuthControllerTests: XCTestCase {
             // Then
             XCTAssertEqual(response.status, HTTPStatus.ok)
             
-            let authResponse = try response.content.decode(AuthenticationDTOs.AuthResponse.self)
+            let authResponse = try response.content.decode(AuthResponse.self)
             XCTAssertNotNil(authResponse.token)
             XCTAssertEqual(authResponse.user.email, email)
         })
@@ -131,7 +131,7 @@ final class AuthControllerTests: XCTestCase {
         let email = "invalid@example.com"
         let password = "wrongPassword"
         
-        let loginData = try JSONEncoder().encode(AuthenticationDTOs.LoginRequest(
+        let loginData = try JSONEncoder().encode(LoginRequest(
             email: email,
             password: password
         ))
@@ -161,7 +161,7 @@ final class AuthControllerTests: XCTestCase {
         try user.save(on: app.db).wait()
         
         // Attempt login with wrong password
-        let loginData = try JSONEncoder().encode(AuthenticationDTOs.LoginRequest(
+        let loginData = try JSONEncoder().encode(LoginRequest(
             email: email,
             password: wrongPassword
         ))

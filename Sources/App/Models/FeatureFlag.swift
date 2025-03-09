@@ -57,7 +57,7 @@ final class FeatureFlag: Model, Content {
 // MARK: - Helper Methods
 extension FeatureFlag {
     /// Create a feature flag from a DTO
-    static func create(from dto: FeatureFlagDTOs.CreateRequest, userId: UUID) -> FeatureFlag {
+    static func create(from dto: CreateFeatureFlagRequest, userId: UUID) -> FeatureFlag {
         FeatureFlag(
             key: dto.key,
             type: dto.type,
@@ -68,7 +68,7 @@ extension FeatureFlag {
     }
     
     /// Update a feature flag from a DTO
-    func update(from dto: FeatureFlagDTOs.UpdateRequest) {
+    func update(from dto: UpdateFeatureFlagRequest) {
         self.key = dto.key
         self.type = dto.type
         self.defaultValue = dto.defaultValue
@@ -76,7 +76,7 @@ extension FeatureFlag {
     }
     
     /// Get all feature flags for a user with their overrides
-    static func getUserFlags(userId: String, on db: Database) async throws -> FeatureFlagDTOs.FlagsContainer {
+    static func getUserFlags(userId: String, on db: Database) async throws -> FeatureFlagsContainer {
         // Get all feature flags for this user
         let flags = try await FeatureFlag.query(on: db)
             .filter(\FeatureFlag.$userId, .equal, UUID(uuidString: userId))
@@ -89,7 +89,7 @@ extension FeatureFlag {
             .all()
         
         // Create response dictionary
-        var response: [String: FeatureFlagDTOs.Response] = [:]
+        var response: [String: FeatureFlagResponse] = [:]
         
         for flag in flags {
             let override = overrides.first { $0.$featureFlag.id == flag.id }
@@ -100,7 +100,7 @@ extension FeatureFlag {
             )
         }
         
-        return FeatureFlagDTOs.FlagsContainer(flags: response)
+        return FeatureFlagsContainer(flags: response)
     }
 }
 

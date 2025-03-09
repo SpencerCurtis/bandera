@@ -22,6 +22,12 @@ struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
         self.isAdmin = user.isAdmin
     }
     
+    init(subject: SubjectClaim, expiration: ExpirationClaim, isAdmin: Bool) {
+        self.subject = subject
+        self.expiration = expiration
+        self.isAdmin = isAdmin
+    }
+    
     func verify(using signer: JWTSigner) throws {
         try self.expiration.verifyNotExpired()
     }

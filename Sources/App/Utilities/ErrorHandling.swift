@@ -4,20 +4,23 @@ import Fluent
 /// Utility functions for error handling.
 ///
 /// This namespace contains utility functions for error handling,
-/// including functions for converting common errors to BanderaErrors
+/// including functions for converting common errors to domain-specific errors
 /// and for handling specific error scenarios.
 enum ErrorHandling {
-    /// Converts a database error to a BanderaError.
+    /// Converts a database error to a domain-specific error.
     ///
     /// - Parameter error: The database error to convert
-    /// - Returns: A BanderaError
-    static func handleDatabaseError(_ error: Error) -> BanderaError {
+    /// - Returns: A domain-specific error
+    static func handleDatabaseError(_ error: Error) -> any BanderaErrorProtocol {
         if let dbError = error as? DatabaseError {
             // Handle generic database errors
-            return .databaseError(String(describing: dbError))
+            return dbError
+        } else if let fluent = error as? FluentError {
+            // Handle Fluent-specific errors
+            return DatabaseError.operationFailed(fluent.localizedDescription)
         } else {
-            // Generic database error
-            return .databaseError(error.localizedDescription)
+            // Handle other database errors
+            return DatabaseError.operationFailed(error.localizedDescription)
         }
     }
     
@@ -26,9 +29,9 @@ enum ErrorHandling {
     /// - Parameters:
     ///   - id: The ID of the resource that wasn't found
     ///   - resourceName: The name of the resource type
-    /// - Returns: A BanderaError
-    static func handleNotFound<T: CustomStringConvertible>(id: T, resourceName: String) -> BanderaError {
-        return .resourceNotFound("\(resourceName) with ID \(id)")
+    /// - Returns: A domain-specific error
+    static func handleNotFound<T: CustomStringConvertible>(id: T, resourceName: String) -> any BanderaErrorProtocol {
+        return ResourceError.notFound("\(resourceName) with ID \(id)")
     }
     
     /// Handles an access denied error for a specific resource.
@@ -36,9 +39,9 @@ enum ErrorHandling {
     /// - Parameters:
     ///   - id: The ID of the resource that access was denied to
     ///   - resourceName: The name of the resource type
-    /// - Returns: A BanderaError
-    static func handleAccessDenied<T: CustomStringConvertible>(id: T, resourceName: String) -> BanderaError {
-        return .accessDenied
+    /// - Returns: A domain-specific error
+    static func handleAccessDenied<T: CustomStringConvertible>(id: T, resourceName: String) -> any BanderaErrorProtocol {
+        return AuthenticationError.accessDenied
     }
     
     /// Handles a validation error for a specific field.
@@ -46,9 +49,9 @@ enum ErrorHandling {
     /// - Parameters:
     ///   - field: The name of the field that failed validation
     ///   - reason: The reason for the validation failure
-    /// - Returns: A BanderaError
-    static func handleValidationError(field: String, reason: String) -> BanderaError {
-        return .validationFailed("\(field): \(reason)")
+    /// - Returns: A domain-specific error
+    static func handleValidationError(field: String, reason: String) -> any BanderaErrorProtocol {
+        return ValidationError.failed("\(field): \(reason)")
     }
     
     /// Handles a resource already exists error.
@@ -56,61 +59,61 @@ enum ErrorHandling {
     /// - Parameters:
     ///   - key: The key or identifier of the resource
     ///   - resourceName: The name of the resource type
-    /// - Returns: A BanderaError
-    static func handleResourceExists(key: String, resourceName: String) -> BanderaError {
-        return .resourceAlreadyExists("\(resourceName) with key '\(key)'")
+    /// - Returns: A domain-specific error
+    static func handleResourceExists(key: String, resourceName: String) -> any BanderaErrorProtocol {
+        return ResourceError.alreadyExists("\(resourceName) with key '\(key)'")
     }
     
     /// Wraps a throwing operation with error handling.
     ///
     /// This function executes the provided operation and catches any errors,
-    /// converting them to BanderaErrors where appropriate.
+    /// converting them to domain-specific errors where appropriate.
     ///
     /// - Parameter operation: The operation to execute
     /// - Returns: The result of the operation
-    /// - Throws: A BanderaError if the operation fails
+    /// - Throws: A domain-specific error if the operation fails
     static func withErrorHandling<T>(_ operation: () async throws -> T) async throws -> T {
         do {
             return try await operation()
-        } catch let error as BanderaError {
-            // Already a BanderaError, just rethrow
+        } catch let error as any BanderaErrorProtocol {
+            // Already a domain-specific error, just rethrow
             throw error
         } catch let error as AbortError {
-            // Convert AbortError to BanderaError
+            // Convert AbortError to domain-specific error
             switch error.status.code {
             case 401:
-                throw BanderaError.authenticationRequired
+                throw AuthenticationError.authenticationRequired
             case 403:
-                throw BanderaError.accessDenied
+                throw AuthenticationError.accessDenied
             case 404:
-                throw BanderaError.resourceNotFound(error.reason)
+                throw ResourceError.notFound(error.reason)
             case 409:
-                throw BanderaError.resourceAlreadyExists(error.reason)
+                throw ResourceError.alreadyExists(error.reason)
             default:
-                throw BanderaError.custom(error.reason)
+                throw ValidationError.failed(error.reason)
             }
         } catch let error as DecodingError {
             // Handle Codable decoding errors
             switch error {
             case .keyNotFound(let key, _):
-                throw BanderaError.missingRequiredField(key.stringValue)
+                throw ValidationError.missingRequiredField(key.stringValue)
             case .valueNotFound(_, let context):
                 let path = context.codingPath.map { $0.stringValue }.joined(separator: ".")
-                throw BanderaError.missingRequiredField(path)
+                throw ValidationError.missingRequiredField(path)
             case .typeMismatch(_, let context):
                 let path = context.codingPath.map { $0.stringValue }.joined(separator: ".")
-                throw BanderaError.invalidFormat(path, context.debugDescription)
+                throw ValidationError.invalidFormat(path, context.debugDescription)
             case .dataCorrupted(let context):
-                throw BanderaError.validationFailed(context.debugDescription)
+                throw ValidationError.failed(context.debugDescription)
             @unknown default:
-                throw BanderaError.validationFailed("Invalid data format")
+                throw ValidationError.failed("Invalid data format")
             }
         } catch {
             // Handle any other errors as internal server errors
             if error is DatabaseError {
                 throw handleDatabaseError(error)
             } else {
-                throw BanderaError.internalServerError(error.localizedDescription)
+                throw ServerError.internal(error.localizedDescription)
             }
         }
     }

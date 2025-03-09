@@ -1,7 +1,7 @@
 import Fluent
 import Vapor
 
-/// Model representing a user
+/// Model representing a user in the system.
 final class User: Model, Content, SessionAuthenticatable, Authenticatable {
     /// Database schema name
     static let schema = "users"
@@ -25,6 +25,10 @@ final class User: Model, Content, SessionAuthenticatable, Authenticatable {
     /// When the user was created
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
+    
+    /// When the user was last updated
+    @Timestamp(key: "updated_at", on: .update)
+    var updatedAt: Date?
     
     /// Default initializer
     init() { }
@@ -57,7 +61,7 @@ final class User: Model, Content, SessionAuthenticatable, Authenticatable {
 // MARK: - Helper Methods
 extension User {
     /// Create a user from a DTO
-    static func create(from dto: UserDTOs.CreateRequest) throws -> User {
+    static func create(from dto: CreateUserRequest) throws -> User {
         do {
             return User(
                 email: dto.email,
@@ -65,12 +69,12 @@ extension User {
                 isAdmin: dto.isAdmin
             )
         } catch {
-            throw BanderaError.internalServerError("Failed to hash password: \(error.localizedDescription)")
+            throw ServerError.internal("Failed to hash password: \(error.localizedDescription)")
         }
     }
     
     /// Create a user from an authentication DTO
-    static func create(from dto: AuthenticationDTOs.RegisterRequest) throws -> User {
+    static func create(from dto: RegisterRequest) throws -> User {
         do {
             return User(
                 email: dto.email,
@@ -78,12 +82,12 @@ extension User {
                 isAdmin: dto.isAdmin
             )
         } catch {
-            throw BanderaError.internalServerError("Failed to hash password: \(error.localizedDescription)")
+            throw ServerError.internal("Failed to hash password: \(error.localizedDescription)")
         }
     }
     
     /// Update a user from a DTO
-    func update(from dto: UserDTOs.UpdateRequest) throws {
+    func update(from dto: UpdateUserRequest) throws {
         self.email = dto.email
         self.isAdmin = dto.isAdmin
         
@@ -91,7 +95,7 @@ extension User {
             do {
                 self.passwordHash = try Bcrypt.hash(password)
             } catch {
-                throw BanderaError.internalServerError("Failed to hash password: \(error.localizedDescription)")
+                throw ServerError.internal("Failed to hash password: \(error.localizedDescription)")
             }
         }
     }

@@ -21,10 +21,10 @@ struct AuthService: AuthServiceProtocol {
     /// Register a new user
     /// - Parameter dto: The DTO with user registration data
     /// - Returns: The authentication response with token and user data
-    func register(_ dto: AuthenticationDTOs.RegisterRequest) async throws -> AuthenticationDTOs.AuthResponse {
+    func register(_ dto: RegisterRequest) async throws -> AuthResponse {
         // Check if user with same email exists
         if try await userRepository.exists(email: dto.email) {
-            throw BanderaError.resourceAlreadyExists("User with email '\(dto.email)'")
+            throw ResourceError.alreadyExists("User with email '\(dto.email)'")
         }
         
         // Create new user
@@ -41,33 +41,33 @@ struct AuthService: AuthServiceProtocol {
         let token = try generateToken(for: user)
         
         // Return response
-        return AuthenticationDTOs.AuthResponse(
+        return AuthResponse(
             token: token,
-            user: AuthenticationDTOs.UserResponse(user: user)
+            user: UserResponse(user: user)
         )
     }
     
     /// Login a user
     /// - Parameter dto: The DTO with user login data
     /// - Returns: The authentication response with token and user data
-    func login(_ dto: AuthenticationDTOs.LoginRequest) async throws -> AuthenticationDTOs.AuthResponse {
+    func login(_ dto: LoginRequest) async throws -> AuthResponse {
         // Find user by email
         guard let user = try await userRepository.getByEmail(dto.email) else {
-            throw BanderaError.invalidCredentials
+            throw AuthenticationError.invalidCredentials
         }
         
         // Verify password
-        guard try Bcrypt.verify(dto.password, created: user.passwordHash) else {
-            throw BanderaError.invalidCredentials
+        guard try user.verify(password: dto.password) else {
+            throw AuthenticationError.invalidCredentials
         }
         
         // Generate token
         let token = try generateToken(for: user)
         
         // Return response
-        return AuthenticationDTOs.AuthResponse(
+        return AuthResponse(
             token: token,
-            user: AuthenticationDTOs.UserResponse(user: user)
+            user: UserResponse(user: user)
         )
     }
     
@@ -75,10 +75,14 @@ struct AuthService: AuthServiceProtocol {
     /// - Parameter user: The user to generate a token for
     /// - Returns: The generated JWT token
     func generateToken(for user: User) throws -> String {
-        // Create JWT payload
-        let payload = try UserJWTPayload(user: user)
+        // Create payload
+        let payload = UserJWTPayload(
+            subject: .init(value: user.id!.uuidString),
+            expiration: .init(value: Date().addingTimeInterval(86400)), // 24 hours
+            isAdmin: user.isAdmin
+        )
         
-        // Sign and return token
+        // Sign payload
         return try jwtSigner.sign(payload)
     }
 } 

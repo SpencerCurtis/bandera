@@ -54,9 +54,6 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
         } else if let abort = error as? AbortError {
             statusCode = abort.status.code
             errorDomain = nil
-        } else if let legacyError = error as? LegacyBanderaError {
-            statusCode = legacyError.status.code
-            errorDomain = nil
         } else {
             statusCode = HTTPStatus.internalServerError.code
             errorDomain = nil
@@ -116,10 +113,10 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
     ///   - error: The error to build a response for
     /// - Returns: The HTTP response
     private func buildErrorResponse(for request: Request, with error: Error) async -> Response {
-        // Extract error information
-        let status: HTTPStatus
-        let reason: String
-        let headers: HTTPHeaders
+        // Handle different error types
+        var status: HTTPStatus
+        var reason: String
+        var headers: HTTPHeaders = [:]
         var recoverySuggestion: String?
         
         // Handle different error types
@@ -132,15 +129,9 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
             status = abort.status
             reason = abort.reason
             headers = abort.headers
-        } else if let legacyError = error as? LegacyBanderaError {
-            status = legacyError.status
-            reason = legacyError.reason
-            headers = legacyError.headers
-            recoverySuggestion = legacyError.recoverySuggestion
         } else {
             status = .internalServerError
             reason = "Something went wrong."
-            headers = [:]
         }
         
         // Create a response with the appropriate status

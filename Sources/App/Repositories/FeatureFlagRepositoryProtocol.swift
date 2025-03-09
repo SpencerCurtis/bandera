@@ -21,7 +21,7 @@ protocol FeatureFlagRepositoryProtocol {
     /// Get all feature flags with their overrides for a user
     /// - Parameter userId: The unique identifier of the user
     /// - Returns: A container with all feature flags and their overrides for the user
-    func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagDTOs.FlagsContainer
+    func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer
     
     /// Check if a feature flag with the given key exists for a user
     /// - Parameters:

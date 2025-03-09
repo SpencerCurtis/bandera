@@ -24,13 +24,13 @@ struct FeatureFlagController: RouteCollection {
     @Sendable
     func create(req: Request) async throws -> FeatureFlag {
         // Validate the request content against the DTO's validation rules
-        try DTOs.CreateRequest.validate(content: req)
-        let create = try req.content.decode(DTOs.CreateRequest.self)
+        try CreateFeatureFlagRequest.validate(content: req)
+        let create = try req.content.decode(CreateFeatureFlagRequest.self)
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw BanderaError.authenticationRequired
+            throw AuthenticationError.authenticationRequired
         }
         
         // Use the feature flag service to create the flag
@@ -42,18 +42,18 @@ struct FeatureFlagController: RouteCollection {
     func update(req: Request) async throws -> FeatureFlag {
         // Get the flag ID from the request parameters
         guard let id = req.parameters.get("id", as: UUID.self) else {
-            throw BanderaError.validationFailed("Invalid feature flag ID")
+            throw ValidationError.failed("Invalid feature flag ID")
         }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw BanderaError.authenticationRequired
+            throw AuthenticationError.authenticationRequired
         }
         
         // Validate and decode the update request
-        try DTOs.UpdateRequest.validate(content: req)
-        let update = try req.content.decode(DTOs.UpdateRequest.self)
+        try UpdateFeatureFlagRequest.validate(content: req)
+        let update = try req.content.decode(UpdateFeatureFlagRequest.self)
         
         // Use the feature flag service to update the flag
         return try await req.services.featureFlagService.updateFlag(id: id, update, userId: userId)
@@ -64,13 +64,13 @@ struct FeatureFlagController: RouteCollection {
     func delete(req: Request) async throws -> HTTPStatus {
         // Get the flag ID from the request parameters
         guard let id = req.parameters.get("id", as: UUID.self) else {
-            throw BanderaError.validationFailed("Invalid feature flag ID")
+            throw ValidationError.failed("Invalid feature flag ID")
         }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw BanderaError.authenticationRequired
+            throw AuthenticationError.authenticationRequired
         }
         
         // Use the feature flag service to delete the flag
@@ -81,20 +81,20 @@ struct FeatureFlagController: RouteCollection {
     
     /// Gets all feature flags for a specific user.
     @Sendable
-    func getForUser(req: Request) async throws -> DTOs.FlagsContainer {
+    func getForUser(req: Request) async throws -> FeatureFlagsContainer {
         // Get the user ID from the request parameters
         guard let userId = req.parameters.get("userId") else {
-            throw BanderaError.validationFailed("Invalid user ID")
+            throw ValidationError.failed("Invalid user ID")
         }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self) else {
-            throw BanderaError.authenticationRequired
+            throw AuthenticationError.authenticationRequired
         }
         
         // Only allow access to own flags or if admin
         if !payload.isAdmin && payload.subject.value != userId {
-            throw BanderaError.accessDenied
+            throw AuthenticationError.accessDenied
         }
         
         // Use the feature flag service to get flags with overrides
@@ -107,7 +107,7 @@ struct FeatureFlagController: RouteCollection {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
-            throw BanderaError.authenticationRequired
+            throw AuthenticationError.authenticationRequired
         }
         
         // Use the feature flag service to get all flags for the user

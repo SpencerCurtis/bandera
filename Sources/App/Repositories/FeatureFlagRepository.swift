@@ -24,7 +24,7 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
             .all()
     }
     
-    func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagDTOs.FlagsContainer {
+    func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer {
         // Get all feature flags for this user
         let flags = try await FeatureFlag.query(on: database)
             .filter(\FeatureFlag.$userId, .equal, UUID(uuidString: userId))
@@ -37,7 +37,7 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
             .all()
         
         // Create response dictionary
-        var response: [String: FeatureFlagDTOs.Response] = [:]
+        var response: [String: FeatureFlagResponse] = [:]
         
         for flag in flags {
             let override = overrides.first { $0.$featureFlag.id == flag.id }
@@ -48,7 +48,7 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
             )
         }
         
-        return FeatureFlagDTOs.FlagsContainer(flags: response)
+        return FeatureFlagsContainer(flags: response)
     }
     
     func exists(key: String, userId: UUID) async throws -> Bool {
