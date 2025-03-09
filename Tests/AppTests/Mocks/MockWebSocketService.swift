@@ -39,6 +39,14 @@ final class MockWebSocketService: WebSocketServiceProtocol {
         broadcastedEvents.append((event: event, data: data))
     }
     
+    func send(message: String, to id: UUID) async throws {
+        broadcastedMessages.append(message)
+    }
+    
+    func send<T: Codable & Sendable>(event: String, data: T, to id: UUID) async throws {
+        broadcastedEvents.append((event: event, data: data))
+    }
+    
     func connectionCount() async -> Int {
         connections.count
     }

@@ -9,11 +9,38 @@ final class WebSocketServiceTests: XCTestCase {
     override func setUp() async throws {
         app = try await Application.testable()
         mockWebSocketService = MockWebSocketService()
-        app.services = ServiceContainer(webSocketService: mockWebSocketService)
+        
+        // Create a custom service container with our mock
+        let featureFlagRepository = FeatureFlagRepository(database: app.db)
+        let userRepository = UserRepository(database: app.db)
+        let featureFlagService = FeatureFlagService(
+            repository: featureFlagRepository,
+            webSocketService: mockWebSocketService
+        )
+        let authService = AuthService(
+            userRepository: userRepository,
+            jwtSigner: app.jwt.signers
+        )
+        
+        // Initialize with all services and repositories
+        app.services = ServiceContainer(
+            webSocketService: mockWebSocketService,
+            featureFlagRepository: featureFlagRepository,
+            userRepository: userRepository,
+            featureFlagService: featureFlagService,
+            authService: authService
+        )
     }
     
     override func tearDown() async throws {
-        app.shutdown()
+        // Use a detached task to call shutdown to avoid async context warning
+        let app = self.app
+        self.app = nil
+        
+        // Shutdown in a detached task to avoid blocking
+        Task.detached {
+            app?.shutdown()
+        }
     }
     
     func testServiceContainer() async throws {
@@ -31,9 +58,12 @@ final class WebSocketServiceTests: XCTestCase {
         // Act
         try await app.services.webSocketService.broadcast(message: message)
         
-        // Assert
-        XCTAssertEqual(await mockWebSocketService.broadcastedMessages.count, 1)
-        XCTAssertEqual(await mockWebSocketService.broadcastedMessages.first, message)
+        // Assert - get values without await since they're not async properties
+        let messagesCount = mockWebSocketService.broadcastedMessages.count
+        let firstMessage = mockWebSocketService.broadcastedMessages.first
+        
+        XCTAssertEqual(messagesCount, 1)
+        XCTAssertEqual(firstMessage, message)
     }
     
     func testBroadcastEvent() async throws {
@@ -44,8 +74,11 @@ final class WebSocketServiceTests: XCTestCase {
         // Act
         try await app.services.webSocketService.broadcast(event: event, data: data)
         
-        // Assert
-        XCTAssertEqual(await mockWebSocketService.broadcastedEvents.count, 1)
-        XCTAssertEqual(await mockWebSocketService.broadcastedEvents.first?.event, event)
+        // Assert - get values without await since they're not async properties
+        let eventsCount = mockWebSocketService.broadcastedEvents.count
+        let firstEventName = mockWebSocketService.broadcastedEvents.first?.event
+        
+        XCTAssertEqual(eventsCount, 1)
+        XCTAssertEqual(firstEventName, event)
     }
 } 

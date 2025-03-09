@@ -18,24 +18,30 @@ final class FeatureFlagControllerTests: XCTestCase {
         try await UserFeatureFlag.query(on: app.db).delete()
         
         // Create admin user and get token
-        let adminUser = try User.create(from: .init(
+        let adminUser = try User.create(from: RegisterRequest(
             email: "admin@example.com",
             password: "adminpass123",
             isAdmin: true
         ))
         try await adminUser.save(on: app.db)
-        let adminPayload = try UserJWTPayload(user: adminUser)
-        adminToken = try app.jwt.signers.sign(adminPayload)
+        adminToken = try app.jwt.signers.sign(UserJWTPayload(
+            subject: .init(value: adminUser.id!.uuidString),
+            expiration: .init(value: Date().addingTimeInterval(86400)),
+            isAdmin: true
+        ))
         
         // Create regular user and get token
-        let regularUser = try User.create(from: .init(
+        let regularUser = try User.create(from: RegisterRequest(
             email: "user@example.com",
             password: "userpass123",
             isAdmin: false
         ))
         try await regularUser.save(on: app.db)
-        let userPayload = try UserJWTPayload(user: regularUser)
-        userToken = try app.jwt.signers.sign(userPayload)
+        userToken = try app.jwt.signers.sign(UserJWTPayload(
+            subject: .init(value: regularUser.id!.uuidString),
+            expiration: .init(value: Date().addingTimeInterval(86400)),
+            isAdmin: false
+        ))
     }
     
     override func tearDown() async throws {
@@ -50,7 +56,7 @@ final class FeatureFlagControllerTests: XCTestCase {
     
     func testCreateFeatureFlag() throws {
         // Given
-        let create = FeatureFlag.Create(
+        let create = CreateFeatureFlagRequest(
             key: "new_feature",
             type: .boolean,
             defaultValue: "false",
@@ -85,7 +91,7 @@ final class FeatureFlagControllerTests: XCTestCase {
     
     func testCreateFeatureFlagUnauthorized() throws {
         // Given
-        let create = FeatureFlag.Create(
+        let create = CreateFeatureFlagRequest(
             key: "new_feature",
             type: .boolean,
             defaultValue: "false",
@@ -113,7 +119,8 @@ final class FeatureFlagControllerTests: XCTestCase {
         )
         try flag.save(on: app.db).wait()
         
-        let update = FeatureFlag.Update(
+        let update = UpdateFeatureFlagRequest(
+            id: flag.id,
             key: "updated_feature",
             type: .string,
             defaultValue: "test",
@@ -187,12 +194,12 @@ final class FeatureFlagControllerTests: XCTestCase {
         try override.save(on: app.db).wait()
         
         // When/Then
-        try app.test(.GET, "feature-flags/user/\(userId)", beforeRequest: { req in
-            req.headers.bearerAuthorization = .init(token: userToken)
+        try app.test(HTTPMethod.GET, "feature-flags/user/\(userId)", beforeRequest: { req in
+            req.headers.bearerAuthorization = BearerAuthorization(token: userToken)
         }, afterResponse: { response in
-            XCTAssertEqual(response.status, .ok)
+            XCTAssertEqual(response.status, HTTPStatus.ok)
             
-            let flags = try response.content.decode([String: FeatureFlag.Response].self)
+            let flags = try response.content.decode([String: FeatureFlagResponse].self)
             XCTAssertEqual(flags.count, 2)
             
             // Check overridden flag

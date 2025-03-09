@@ -12,35 +12,47 @@ final class WebSocketTests: XCTestCase {
         app = try await Application.testable()
         
         // Create a test user
-        let createUser = CreateUserRequest(
+        let createUser = RegisterRequest(
             email: "websocket-test@example.com",
             password: "password123",
-            name: "WebSocket Test User"
+            isAdmin: false
         )
         
-        testUser = try await UserController().create(
-            user: createUser,
-            on: app.db
+        // Create the user directly
+        testUser = try User.create(from: createUser)
+        try await testUser.save(on: app.db)
+        
+        // Get auth token using the AuthService
+        let authService = AuthService(
+            userRepository: UserRepository(database: app.db),
+            jwtSigner: app.jwt.signers
         )
         
-        // Get auth token
         let loginRequest = LoginRequest(
             email: "websocket-test@example.com",
             password: "password123"
         )
         
-        let loginResponse = try await app.sendRequest(.POST, "auth/login", body: loginRequest)
-        let loginResult = try loginResponse.content.decode(AuthResponse.self)
-        authToken = loginResult.token
+        let authResponse = try await authService.login(loginRequest)
+        authToken = authResponse.token
     }
     
     override func tearDown() async throws {
-        app.shutdown()
+        // Use a detached task to call shutdown to avoid async context warning
+        let app = self.app
+        self.app = nil
+        
+        // Shutdown in a detached task to avoid blocking
+        Task.detached {
+            app?.shutdown()
+        }
     }
     
     func testWebSocketConnection() async throws {
-        // Create a WebSocket client
-        let client = WebSocketClient(eventLoop: app.eventLoopGroup.next())
+        // Create a WebSocket client with the correct initialization
+        let client = WebSocketClient(
+            eventLoopGroupProvider: .shared(app.eventLoopGroup)
+        )
         
         // Connect to the WebSocket endpoint
         let promise = app.eventLoopGroup.next().makePromise(of: Void.self)
@@ -50,7 +62,13 @@ final class WebSocketTests: XCTestCase {
             "Authorization": "Bearer \(authToken!)"
         ]
         
-        try await client.connect(to: "ws://localhost:8080/flags/socket", headers: headers) { ws in
+        try await client.connect(
+            scheme: "ws",
+            host: "localhost",
+            port: 8080,
+            path: "/flags/socket",
+            headers: headers
+        ) { ws in
             ws.onText { _, text in
                 receivedMessages.append(text)
                 if receivedMessages.count >= 3 {
@@ -63,10 +81,9 @@ final class WebSocketTests: XCTestCase {
                 do {
                     let createFlag = CreateFeatureFlagRequest(
                         key: "test-websocket-flag",
-                        name: "Test WebSocket Flag",
-                        description: "A flag for testing WebSockets",
+                        type: .boolean,
                         defaultValue: "true",
-                        enabled: true
+                        description: "A flag for testing WebSockets"
                     )
                     
                     // Create the flag
@@ -81,11 +98,11 @@ final class WebSocketTests: XCTestCase {
                     
                     // Update the flag
                     let updateFlag = UpdateFeatureFlagRequest(
+                        id: flag.id,
                         key: "test-websocket-flag",
-                        name: "Updated Test WebSocket Flag",
-                        description: "An updated flag for testing WebSockets",
+                        type: .string,
                         defaultValue: "false",
-                        enabled: false
+                        description: "An updated flag for testing WebSockets"
                     )
                     
                     _ = try await self.app.sendRequest(
@@ -121,17 +138,6 @@ final class WebSocketTests: XCTestCase {
 }
 
 // Helper extension for testing
-extension Application {
-    static func testable() async throws -> Application {
-        let app = Application(.testing)
-        try await configure(app)
-        
-        try app.autoMigrate().wait()
-        
-        return app
-    }
-}
-
 extension XCTApplicationTester {
     @discardableResult
     func sendRequest(
@@ -140,9 +146,16 @@ extension XCTApplicationTester {
         headers: [String: String] = [:],
         body: Encodable? = nil
     ) async throws -> XCTHTTPResponse {
+        // Create empty headers and body
+        let emptyHeaders = HTTPHeaders()
+        var emptyBody = ByteBufferAllocator().buffer(capacity: 0)
+        
+        // Initialize with required parameters
         var request = XCTHTTPRequest(
             method: method,
-            url: .init(path: path)
+            url: .init(path: path),
+            headers: emptyHeaders,
+            body: emptyBody
         )
         
         // Add headers
@@ -150,12 +163,15 @@ extension XCTApplicationTester {
             request.headers.add(name: key, value: value)
         }
         
-        // Add body if provided
         if let body = body {
-            request.body = try JSONEncoder().encode(body)
+            // Convert the Encodable to a ByteBuffer
+            let data = try JSONEncoder().encode(body)
+            var buffer = ByteBufferAllocator().buffer(capacity: data.count)
+            buffer.writeBytes(data)
+            request.body = buffer
             request.headers.contentType = .json
         }
         
-        return try await performTest(request)
+        return try await performTest(request: request)
     }
 }

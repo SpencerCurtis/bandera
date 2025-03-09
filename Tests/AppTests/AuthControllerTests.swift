@@ -33,7 +33,7 @@ final class AuthControllerTests: XCTestCase {
         let email = "test@example.com"
         let password = "securePassword123"
         
-        let registerData = try JSONEncoder().encode(User.Create(
+        let registerData = try JSONEncoder().encode(RegisterRequest(
             email: email,
             password: password,
             isAdmin: false
@@ -70,7 +70,7 @@ final class AuthControllerTests: XCTestCase {
         let password = "securePassword123"
         
         // Create initial user
-        let user = try User.create(from: .init(
+        let user = try User.create(from: RegisterRequest(
             email: email,
             password: password,
             isAdmin: false
@@ -78,7 +78,7 @@ final class AuthControllerTests: XCTestCase {
         try user.save(on: app.db).wait()
         
         // Try to register with same email
-        let registerData = try JSONEncoder().encode(User.Create(
+        let registerData = try JSONEncoder().encode(RegisterRequest(
             email: email,
             password: password,
             isAdmin: false
@@ -95,11 +95,11 @@ final class AuthControllerTests: XCTestCase {
     
     func testUserLogin() throws {
         // Given
-        let email = "login@example.com"
+        let email = "test@example.com"
         let password = "securePassword123"
         
         // Create user
-        let user = try User.create(from: .init(
+        let user = try User.create(from: RegisterRequest(
             email: email,
             password: password,
             isAdmin: false
@@ -153,7 +153,41 @@ final class AuthControllerTests: XCTestCase {
         let wrongPassword = "wrongPassword123"
         
         // Create user with correct password
-        let user = try User.create(from: .init(
+        let user = try User.create(from: RegisterRequest(
+            email: email,
+            password: correctPassword,
+            isAdmin: false
+        ))
+        try user.save(on: app.db).wait()
+        
+        // Attempt login with wrong password
+        let loginData = try JSONEncoder().encode(LoginRequest(
+            email: email,
+            password: wrongPassword
+        ))
+        
+        // When/Then
+        try app.test(.POST, "auth/login", beforeRequest: { req in
+            req.headers.contentType = HTTPMediaType.json
+            req.headers.add(name: .accept, value: "application/json")
+            req.body = ByteBuffer(data: loginData)
+        }, afterResponse: { response in
+            XCTAssertEqual(response.status, HTTPStatus.unauthorized)
+            
+            // Verify error message
+            let errorResponse = try response.content.decode(ErrorResponse.self)
+            XCTAssertEqual(errorResponse.reason, "Invalid credentials")
+        })
+    }
+    
+    func testUserLoginWithWrongPassword() throws {
+        // Given
+        let email = "test@example.com"
+        let correctPassword = "securePassword123"
+        let wrongPassword = "wrongPassword123"
+        
+        // Create user with correct password
+        let user = try User.create(from: RegisterRequest(
             email: email,
             password: correctPassword,
             isAdmin: false

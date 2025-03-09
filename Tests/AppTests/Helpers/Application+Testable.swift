@@ -5,13 +5,12 @@ extension Application {
     /// Creates a testable application with a custom configuration
     /// - Returns: A configured application for testing
     static func testable() async throws -> Application {
+        // Create a testing application
         let app = Application(.testing)
+        
+        // Configure the application
         try await configure(app)
         
-        // Override services with test versions if needed
-        // app.services = ServiceContainer(webSocketService: MockWebSocketService())
-        
-        try app.boot()
         return app
     }
 } 
