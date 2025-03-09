@@ -7,19 +7,6 @@ import Redis
 import JWT
 
 /// Configures the Vapor application.
-///
-/// This function sets up all the components of the application including:
-/// - Middleware configuration
-/// - Database connection
-/// - Redis connection
-/// - JWT authentication
-/// - Migrations
-/// - Services
-/// - View engine
-/// - Routes
-///
-/// - Parameter app: The Vapor application to configure
-/// - Throws: An error if configuration fails
 public func configure(_ app: Application) async throws {
     // MARK: - Middleware Configuration
     
@@ -32,23 +19,19 @@ public func configure(_ app: Application) async throws {
     app.middleware.use(app.sessions.middleware)
     
     // Register custom error middleware (should be first in the chain)
-    // This middleware handles errors and converts them to appropriate HTTP responses
     app.registerErrorMiddleware()
     
     // Add unified authentication middleware
-    // This middleware handles JWT and cookie-based authentication
     app.middleware.use(AuthMiddleware.standard)
 
     // MARK: - Database Configuration
     
     // Configure SQLite database for development and testing
-    // In production, this would typically be replaced with PostgreSQL
     app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
 
     // MARK: - Redis Configuration
     
     // Configure Redis for caching and real-time updates
-    // Redis connection parameters can be customized via environment variables
     app.redis.configuration = try RedisConfiguration(
         hostname: Environment.get("REDIS_HOST") ?? "localhost",
         port: Environment.get("REDIS_PORT").flatMap(Int.init(_:)) ?? 6379,
@@ -58,7 +41,6 @@ public func configure(_ app: Application) async throws {
     // MARK: - JWT Configuration
     
     // Configure JWT for secure authentication
-    // The secret key should be set via environment variables in production
     app.jwt.signers.use(.hs256(key: Environment.get("JWT_SECRET") ?? "your-default-secret"))
 
     // MARK: - Migrations
@@ -80,7 +62,6 @@ public func configure(_ app: Application) async throws {
     // MARK: - Service Configuration
     
     // Initialize service container with the application
-    // This sets up all services and repositories
     let serviceContainer = ServiceContainer(app: app)
     app.services = serviceContainer
     

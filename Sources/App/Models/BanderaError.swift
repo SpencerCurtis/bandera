@@ -1,23 +1,11 @@
 import Vapor
 
 /// Protocol that all Bandera application errors must conform to.
-///
-/// This protocol standardizes error handling across the application by ensuring
-/// all errors provide consistent information needed for proper error responses.
 protocol BanderaErrorProtocol: Error, AbortError, LocalizedError, CustomDebugStringConvertible, Sendable {
-    /// The HTTP status code to return for this error
     var status: HTTPStatus { get }
-    
-    /// A user-friendly error message
     var reason: String { get }
-    
-    /// Optional recovery suggestion for the user
     var recoverySuggestion: String? { get }
-    
-    /// Optional HTTP headers to include in the response
     var headers: HTTPHeaders { get }
-    
-    /// The error domain for categorization and filtering
     var domain: ErrorDomain { get }
 }
 
@@ -34,23 +22,18 @@ enum ErrorDomain: String, Sendable {
 // MARK: - Default Implementations
 
 extension BanderaErrorProtocol {
-    /// Default implementation for headers
     var headers: HTTPHeaders {
-        // Most errors don't need custom headers
         return [:]
     }
     
-    /// Default implementation for recovery suggestion
     var recoverySuggestion: String? {
         return nil
     }
     
-    /// Default implementation for localized error description
     var errorDescription: String? {
         return reason
     }
     
-    /// Default implementation for debug description
     var debugDescription: String {
         return "[\(status.code)] \(reason)"
     }
@@ -60,27 +43,16 @@ extension BanderaErrorProtocol {
 
 /// Errors related to authentication and authorization
 enum AuthenticationError: BanderaErrorProtocol {
-    /// Invalid username or password
     case invalidCredentials
-    
-    /// Authentication is required for this operation
     case authenticationRequired
-    
-    /// User does not have permission to perform this operation
     case accessDenied
-    
-    /// Token has expired
     case tokenExpired
-    
-    /// Token is invalid
     case invalidToken
     
-    /// The error domain
     var domain: ErrorDomain {
         return .authentication
     }
     
-    /// Maps each error type to an appropriate HTTP status code
     var status: HTTPStatus {
         switch self {
         case .invalidCredentials, .authenticationRequired, .tokenExpired, .invalidToken:
@@ -90,7 +62,6 @@ enum AuthenticationError: BanderaErrorProtocol {
         }
     }
     
-    /// Provides a user-friendly error message for each error type
     var reason: String {
         switch self {
         case .invalidCredentials:
@@ -98,25 +69,26 @@ enum AuthenticationError: BanderaErrorProtocol {
         case .authenticationRequired:
             return "Authentication is required to access this resource"
         case .accessDenied:
-            return "You do not have permission to perform this operation"
+            return "You do not have permission to access this resource"
         case .tokenExpired:
-            return "Your session has expired, please log in again"
+            return "Authentication token has expired"
         case .invalidToken:
             return "Invalid authentication token"
         }
     }
     
-    /// Provides a localized recovery suggestion
     var recoverySuggestion: String? {
         switch self {
         case .invalidCredentials:
-            return "Please check your username and password and try again."
-        case .authenticationRequired, .tokenExpired:
-            return "Please log in to continue."
+            return "Please check your username and password and try again"
+        case .authenticationRequired:
+            return "Please log in to access this resource"
         case .accessDenied:
-            return "If you believe you should have access, please contact your administrator."
+            return "Contact an administrator if you believe you should have access"
+        case .tokenExpired:
+            return "Please log in again to refresh your session"
         case .invalidToken:
-            return "Please log in again to continue."
+            return "Please log in again to obtain a valid token"
         }
     }
 }
