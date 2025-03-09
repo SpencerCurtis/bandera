@@ -6,9 +6,23 @@ import Vapor
 import Redis
 import JWT
 
+// Define a storage key for test database flag
+private struct TestDatabaseKey: StorageKey {
+    typealias Value = Bool
+}
+
 /// Configures the Vapor application.
 public func configure(_ app: Application) async throws {
     // MARK: - Middleware Configuration
+    
+    // Configure CORS
+    let corsConfiguration = CORSMiddleware.Configuration(
+        allowedOrigin: .all,
+        allowedMethods: [.GET, .POST, .PUT, .OPTIONS, .DELETE, .PATCH],
+        allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith, .userAgent, .accessControlAllowOrigin]
+    )
+    let cors = CORSMiddleware(configuration: corsConfiguration)
+    app.middleware.use(cors)
     
     // Serve static files from the Public directory
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
@@ -23,8 +37,12 @@ public func configure(_ app: Application) async throws {
     
     // MARK: - Database Configuration
     
-    // Configure SQLite database for development and testing
-    app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
+    // Only configure the database if it hasn't been configured for testing
+    let useTestDatabase = app.storage[TestDatabaseKey.self] ?? false
+    if !useTestDatabase {
+        // Configure SQLite database for development and testing
+        app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
+    }
 
     // MARK: - Redis Configuration
     
@@ -47,15 +65,19 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateFeatureFlag())
     app.migrations.add(CreateUserFeatureFlag())
     app.migrations.add(AddUserIdToFeatureFlag())
-    app.migrations.add(AddUpdatedAtToUser())
 
     // Add admin user in non-testing environments
     if app.environment != .testing {
         app.migrations.add(CreateAdminUser())
+        // Add test users in development environment
+        app.migrations.add(CreateTestUsers(environment: app.environment))
     }
 
-    // Run migrations automatically
-    try await app.autoMigrate()
+    // Run migrations automatically unless we're in a test environment
+    // In tests, migrations are handled by the test helper
+    if app.environment != .testing {
+        try await app.autoMigrate()
+    }
     
     // MARK: - Service Configuration
     

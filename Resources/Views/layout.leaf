@@ -1,29 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>#(title) - Feature Flag Service</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col">
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col text-gray-900 dark:text-gray-100">
     #if(isAuthenticated):
-        <nav class="bg-white shadow-lg">
+        <nav class="bg-white dark:bg-gray-800 shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <div class="flex-shrink-0 flex items-center">
-                            <span class="text-xl font-bold text-gray-800">Feature Flag Service</span>
+                            <span class="text-xl font-bold text-gray-800 dark:text-white">Feature Flag Service</span>
                         </div>
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="/dashboard" class="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            <a href="/dashboard" class="#if(title == "Dashboard"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Dashboard
                             </a>
+                            #if(isAdmin):
+                            <a href="/routes" class="#if(title == "Application Routes"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Routes
+                            </a>
+                            #endif
                         </div>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:items-center">
                         <form action="/auth/logout" method="post">
-                            <button type="submit" class="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <button type="submit" class="bg-white dark:bg-gray-800 p-1 rounded-full text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                 Logout
                             </button>
                         </form>
@@ -36,19 +49,19 @@
     <main class="flex-grow">
         #if(error):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                <div class="rounded-md bg-red-50 p-4">
+                <div class="rounded-md bg-red-50 dark:bg-red-900 p-4">
                     <div class="flex">
                         <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <svg class="h-5 w-5 text-red-400 dark:text-red-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">
+                            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
                                 #(error)
                             </h3>
                             #if(recoverySuggestion):
-                                <div class="mt-2 text-sm text-red-700">
+                                <div class="mt-2 text-sm text-red-700 dark:text-red-300">
                                     #(recoverySuggestion)
                                 </div>
                             #endif
@@ -60,15 +73,15 @@
         
         #if(success):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                <div class="rounded-md bg-green-50 p-4">
+                <div class="rounded-md bg-green-50 dark:bg-green-900 p-4">
                     <div class="flex">
                         <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <svg class="h-5 w-5 text-green-400 dark:text-green-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-green-800">
+                            <p class="text-sm font-medium text-green-800 dark:text-green-200">
                                 #(success)
                             </p>
                         </div>
@@ -80,9 +93,9 @@
         #import("content")
     </main>
     
-    <footer class="bg-white">
+    <footer class="bg-white dark:bg-gray-800">
         <div class="max-w-7xl mx-auto py-6 px-4 overflow-hidden sm:px-6 lg:px-8">
-            <p class="text-center text-base text-gray-500">
+            <p class="text-center text-base text-gray-500 dark:text-gray-400">
                 &copy; 2023 Feature Flag Service. All rights reserved.
             </p>
         </div>

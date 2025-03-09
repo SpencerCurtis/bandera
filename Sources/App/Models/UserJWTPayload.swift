@@ -18,7 +18,7 @@ struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
     
     init(user: User) throws {
         self.subject = SubjectClaim(value: user.id?.uuidString ?? "")
-        self.expiration = ExpirationClaim(value: Date().addingTimeInterval(60 * 60 * 24)) // 24 hours
+        self.expiration = ExpirationClaim(value: Date().addingTimeInterval(7 * 86400)) // 7 days instead of 24 hours
         self.isAdmin = user.isAdmin
     }
     

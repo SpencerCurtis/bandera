@@ -4,8 +4,8 @@ import Fluent
 // Renamed from AdminController to DashboardController to reflect its more general purpose
 struct DashboardController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Use the new AuthMiddleware instead of UserJWTPayload.authenticator()
-        let protected = routes.grouped(AuthMiddleware.standard)
+        // Use the RedirectingAuthMiddleware instead of AuthMiddleware.standard
+        let protected = routes.grouped(RedirectingAuthMiddleware.standard)
         
         // Rename from admin to dashboard
         let dashboard = protected.grouped("dashboard")
@@ -25,6 +25,7 @@ struct DashboardController: RouteCollection {
     struct DashboardContext: Content {
         var title: String
         var isAuthenticated: Bool
+        var isAdmin: Bool
         var error: String?
         var recoverySuggestion: String?
         var success: String?
@@ -35,6 +36,7 @@ struct DashboardController: RouteCollection {
     struct FeatureFlagFormContext: Content {
         var title: String
         var isAuthenticated: Bool
+        var isAdmin: Bool
         var error: String?
         var recoverySuggestion: String?
         var success: String?
@@ -55,7 +57,7 @@ struct DashboardController: RouteCollection {
             req.logger.debug("No authenticated user found in request")
             
             // Check for auth cookie
-            if let authCookie = req.cookies["vapor-auth-token"] {
+            if let authCookie = req.cookies["bandera-auth-token"] {
                 req.logger.debug("Auth cookie found: \(authCookie.string)")
             } else {
                 req.logger.debug("No auth cookie found")
@@ -79,6 +81,7 @@ struct DashboardController: RouteCollection {
         let dashboardContext = DashboardContext(
             title: context.title,
             isAuthenticated: true,
+            isAdmin: payload.isAdmin,
             error: context.error,
             recoverySuggestion: context.recoverySuggestion,
             success: context.success,
@@ -91,6 +94,11 @@ struct DashboardController: RouteCollection {
     
     @Sendable
     func createForm(req: Request) async throws -> View {
+        // Get the authenticated user
+        guard let payload = req.auth.get(UserJWTPayload.self) else {
+            throw AuthenticationError.authenticationRequired
+        }
+        
         // Create the context for the form
         let context = ViewContext(title: "Create Feature Flag")
         
@@ -98,6 +106,7 @@ struct DashboardController: RouteCollection {
         let formContext = FeatureFlagFormContext(
             title: context.title,
             isAuthenticated: true,
+            isAdmin: payload.isAdmin,
             error: context.error,
             recoverySuggestion: context.recoverySuggestion,
             success: context.success,
@@ -134,6 +143,7 @@ struct DashboardController: RouteCollection {
         let formContext = FeatureFlagFormContext(
             title: context.title,
             isAuthenticated: true,
+            isAdmin: payload.isAdmin,
             error: context.error,
             recoverySuggestion: context.recoverySuggestion,
             success: context.success,
@@ -165,12 +175,14 @@ struct DashboardController: RouteCollection {
             // Redirect to the dashboard with a success message
             var context = ViewContext(title: "Dashboard")
             context.isAuthenticated = true
+            context.isAdmin = payload.isAdmin
             context.success = "Feature flag created successfully"
             
             return req.redirect(to: "/dashboard")
         } catch {
             // If there's an error, render the form again with the error message
-            let context = ViewContext(title: "Create Feature Flag")
+            var context = ViewContext(title: "Create Feature Flag")
+            context.isAdmin = payload.isAdmin
             
             // Create a feature flag from the form data
             let flag = FeatureFlag(
@@ -184,6 +196,7 @@ struct DashboardController: RouteCollection {
             let formContext = FeatureFlagFormContext(
                 title: context.title,
                 isAuthenticated: true,
+                isAdmin: payload.isAdmin,
                 error: error.localizedDescription,
                 recoverySuggestion: context.recoverySuggestion,
                 success: context.success,
@@ -219,12 +232,14 @@ struct DashboardController: RouteCollection {
             // Redirect to the dashboard with a success message
             var context = ViewContext(title: "Dashboard")
             context.isAuthenticated = true
+            context.isAdmin = payload.isAdmin
             context.success = "Feature flag updated successfully"
             
             return req.redirect(to: "/dashboard")
         } catch {
             // If there's an error, render the form again with the error message
-            let context = ViewContext(title: "Edit Feature Flag")
+            var context = ViewContext(title: "Edit Feature Flag")
+            context.isAdmin = payload.isAdmin
             
             // Create a feature flag from the form data
             let flag = FeatureFlag(
@@ -239,6 +254,7 @@ struct DashboardController: RouteCollection {
             let formContext = FeatureFlagFormContext(
                 title: context.title,
                 isAuthenticated: true,
+                isAdmin: payload.isAdmin,
                 error: error.localizedDescription,
                 recoverySuggestion: context.recoverySuggestion,
                 success: context.success,
@@ -269,6 +285,7 @@ struct DashboardController: RouteCollection {
         // Redirect to the dashboard with a success message
         var context = ViewContext(title: "Dashboard")
         context.isAuthenticated = true
+        context.isAdmin = payload.isAdmin
         context.success = "Feature flag deleted successfully"
         
         return req.redirect(to: "/dashboard")

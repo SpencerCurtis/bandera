@@ -167,6 +167,31 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
     ///   - error: The original error
     /// - Returns: The HTML response
     private func buildHTMLResponse(_ request: Request, _ response: Response, reason: String, suggestion: String?, requestId: String?, error: Error) async -> Response {
+        // Handle authentication errors by redirecting to login
+        if error is AuthenticationError {
+            let currentPath = request.url.path
+            let encodedPath = currentPath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            return request.redirect(to: "/auth/login?returnTo=\(encodedPath)")
+        }
+        
+        // Handle 404 errors by showing the 404 page instead of redirecting to login
+        if response.status == .notFound {
+            do {
+                // Create context for the 404 page
+                let context = ViewContext(
+                    title: "Page Not Found",
+                    isAuthenticated: request.auth.get(UserJWTPayload.self) != nil,
+                    isAdmin: request.auth.get(UserJWTPayload.self)?.isAdmin ?? false
+                )
+                
+                // Render the 404 page
+                response.headers.contentType = .html
+                return try await request.view.render("404", context).encodeResponse(for: request)
+            } catch {
+                // Fall back to the generic error page if rendering fails
+            }
+        }
+        
         // Try to render the error page using Leaf
         do {
             // Create view context

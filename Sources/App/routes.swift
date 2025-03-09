@@ -33,11 +33,17 @@ func routes(_ app: Application) throws {
     // These routes handle WebSocket connections for real-time feature flag updates
     try app.register(collection: WebSocketController())
     
+    // MARK: - Routes Page
+    
+    // Register routes controller for displaying all available routes
+    try app.register(collection: RoutesController())
+    
     // MARK: - Health Check Route
     
     // Basic health check route for monitoring
     // This route is used to verify that the application is running
-    app.get("health") { req async -> String in
+    let healthRoute = app.get("health") { req async -> String in
         "OK"
     }
+    healthRoute.userInfo["description"] = "Health check endpoint to verify the application is running"
 }

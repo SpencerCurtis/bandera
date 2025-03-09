@@ -23,6 +23,11 @@ struct AuthController: RouteCollection {
             context.error = errorMessage
         }
         
+        // Get the returnTo parameter if present
+        if let returnTo = req.query[String.self, at: "returnTo"] {
+            context.returnTo = returnTo
+        }
+        
         return try await req.view.render("login", context)
     }
     
@@ -42,6 +47,21 @@ struct AuthController: RouteCollection {
         try LoginRequest.validate(content: req)
         let loginRequest = try req.content.decode(LoginRequest.self)
         
+        // Get the returnTo parameter if present
+        let returnTo: String
+        // First check form data
+        if let returnToValue = try? req.content.get(String.self, at: "returnTo") {
+            returnTo = returnToValue
+        } 
+        // Then check query string
+        else if let returnToValue = req.query[String.self, at: "returnTo"] {
+            returnTo = returnToValue
+        } 
+        // Default to dashboard
+        else {
+            returnTo = "/dashboard"
+        }
+        
         do {
             // Use the auth service to login the user
             let authResponse = try await req.services.authService.login(loginRequest)
@@ -51,12 +71,19 @@ struct AuthController: RouteCollection {
                 // API call, return JSON response
                 return try await authResponse.encodeResponse(for: req)
             } else {
-                // Web request, set cookie and redirect to dashboard
-                let response = req.redirect(to: "/dashboard")
-                response.cookies["vapor-auth-token"] = .init(
+                // Web request, set cookie and redirect to the returnTo path or dashboard
+                // Use 302 Found instead of 303 See Other for better browser compatibility
+                let response = Response(status: .found)
+                response.headers.replaceOrAdd(name: .location, value: returnTo)
+                
+                // Only set secure flag in production environment
+                let isSecure = req.application.environment == .production
+                
+                response.cookies["bandera-auth-token"] = .init(
                     string: authResponse.token,
-                    expires: Date().addingTimeInterval(86400), // 24 hours
-                    isSecure: true,
+                    expires: Date().addingTimeInterval(7 * 86400), // 7 days instead of 24 hours
+                    path: "/", // Ensure cookie is available for all paths
+                    isSecure: isSecure, // Only secure in production
                     isHTTPOnly: true,
                     sameSite: .lax
                 )
@@ -68,9 +95,15 @@ struct AuthController: RouteCollection {
                 // API call, return JSON error
                 throw error
             } else {
-                // Web request, redirect to login page with error
+                // Web request, redirect to login page with error and returnTo parameter
                 let errorMessage = (error as? any BanderaErrorProtocol)?.reason ?? "Invalid credentials"
-                return req.redirect(to: "/auth/login?error=\(errorMessage.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")
+                let encodedError = errorMessage.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                let encodedReturnTo = returnTo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                
+                // Use 302 Found instead of 303 See Other for better browser compatibility
+                let response = Response(status: .found)
+                response.headers.replaceOrAdd(name: .location, value: "/auth/login?error=\(encodedError)&returnTo=\(encodedReturnTo)")
+                return response
             }
         }
     }
@@ -79,11 +112,18 @@ struct AuthController: RouteCollection {
     @Sendable
     func logout(req: Request) async throws -> Response {
         // Clear the auth cookie
-        let response = req.redirect(to: "/auth/login")
-        response.cookies["vapor-auth-token"] = .init(
+        // Use 302 Found instead of 303 See Other for better browser compatibility
+        let response = Response(status: .found)
+        response.headers.replaceOrAdd(name: .location, value: "/auth/login")
+        
+        // Only set secure flag in production environment
+        let isSecure = req.application.environment == .production
+        
+        response.cookies["bandera-auth-token"] = .init(
             string: "",
             expires: Date().addingTimeInterval(-86400), // Expired
-            isSecure: true,
+            path: "/", // Ensure cookie is cleared for all paths
+            isSecure: isSecure, // Only secure in production
             isHTTPOnly: true,
             sameSite: .lax
         )

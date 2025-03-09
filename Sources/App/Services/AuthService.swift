@@ -78,7 +78,7 @@ struct AuthService: AuthServiceProtocol {
         // Create payload
         let payload = UserJWTPayload(
             subject: .init(value: user.id!.uuidString),
-            expiration: .init(value: Date().addingTimeInterval(86400)), // 24 hours
+            expiration: .init(value: Date().addingTimeInterval(7 * 86400)), // 7 days instead of 24 hours
             isAdmin: user.isAdmin
         )
         

@@ -8,6 +8,9 @@ struct ViewContext: Content {
     /// Whether the user is authenticated
     var isAuthenticated: Bool = false
     
+    /// Whether the user is an admin
+    var isAdmin: Bool = false
+    
     /// Optional error message
     var error: String?
     
@@ -25,6 +28,9 @@ struct ViewContext: Content {
     
     /// Optional debug information (for error pages in development)
     var debugInfo: String?
+    
+    /// Optional return path for redirecting after login
+    var returnTo: String?
     
     /// Create a context for an error page
     static func error(

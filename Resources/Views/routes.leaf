@@ -1,0 +1,103 @@
+#extend("layout"):
+    #export("content"):
+        <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                    Application Routes
+                </h3>
+                <a href="/dashboard" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Back to Dashboard
+                </a>
+            </div>
+            
+            <div class="border-t border-gray-200 dark:border-gray-700">
+                #if(groupedRoutes):
+                    <div class="accordion">
+                        #for(group in groupedRoutes):
+                            <div class="accordion-item">
+                                <div class="accordion-header bg-gray-100 dark:bg-gray-700 px-4 py-3 cursor-pointer flex justify-between items-center" onclick="toggleAccordion(this)">
+                                    <h4 class="text-md font-medium text-gray-900 dark:text-white capitalize">#(group.key) Routes</h4>
+                                    <svg class="h-5 w-5 text-gray-500 dark:text-gray-400 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="accordion-content hidden">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-50 dark:bg-gray-800">
+                                            <tr>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Method</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Path</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            #for(route in group.value):
+                                                <tr>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                                        <span class="px-2 py-1 text-xs font-semibold rounded-md
+                                                            #if(route.method == "GET"):
+                                                                bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                                                            #elseif(route.method == "POST"):
+                                                                bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100
+                                                            #elseif(route.method == "PUT"):
+                                                                bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100
+                                                            #elseif(route.method == "DELETE"):
+                                                                bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100
+                                                            #else:
+                                                                bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300
+                                                            #endif
+                                                        ">
+                                                            #(route.method)
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 font-mono">#(route.path)</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">#(route.description)</td>
+                                                </tr>
+                                            #endfor
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        #endfor
+                    </div>
+                #else:
+                    <div class="p-6 text-center text-gray-500 dark:text-gray-300">
+                        No routes found
+                    </div>
+                #endif
+            </div>
+        </div>
+        
+        <script>
+            // Function to toggle accordion sections
+            function toggleAccordion(element) {
+                // Toggle the active class on the header
+                element.classList.toggle('active');
+                
+                // Toggle the rotation of the arrow
+                const arrow = element.querySelector('svg');
+                if (element.classList.contains('active')) {
+                    arrow.classList.add('rotate-180');
+                } else {
+                    arrow.classList.remove('rotate-180');
+                }
+                
+                // Toggle the visibility of the content
+                const content = element.nextElementSibling;
+                if (element.classList.contains('active')) {
+                    content.classList.remove('hidden');
+                } else {
+                    content.classList.add('hidden');
+                }
+            }
+            
+            // Open the first accordion by default
+            document.addEventListener('DOMContentLoaded', function() {
+                const firstAccordion = document.querySelector('.accordion-header');
+                if (firstAccordion) {
+                    toggleAccordion(firstAccordion);
+                }
+            });
+        </script>
+    #endexport
+#endextend 
