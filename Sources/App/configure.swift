@@ -38,26 +38,22 @@ public func configure(_ app: Application) async throws {
     
     // Configure Redis for rate limiting (if not testing)
     if app.environment != .testing {
-        try app.redis.configuration = .init(
-            hostname: Environment.get("REDIS_HOST") ?? "localhost",
-            port: Int(Environment.get("REDIS_PORT") ?? "6379") ?? 6379,
-            password: Environment.get("REDIS_PASSWORD"),
-            pool: .init(
-                maximumConnectionCount: .maximumPreservedConnections(1),
-                minimumConnectionCount: 1,
-                connectionBackoffFactor: 1,
-                initialConnectionBackoffDelay: .milliseconds(100),
-                connectionRetryTimeout: .seconds(1)
+        if let redisHost = Environment.get("REDIS_HOST") {
+            try app.redis.configuration = .init(
+                hostname: redisHost,
+                port: Int(Environment.get("REDIS_PORT") ?? "6379") ?? 6379,
+                password: Environment.get("REDIS_PASSWORD"),
+                pool: .init(
+                    maximumConnectionCount: .maximumPreservedConnections(1),
+                    minimumConnectionCount: 1,
+                    connectionBackoffFactor: 1,
+                    initialConnectionBackoffDelay: .milliseconds(100),
+                    connectionRetryTimeout: .seconds(1)
+                )
             )
-        )
+            app.logger.notice("Using Redis for rate limiting")
+        }
     }
-    
-    // Configure rate limiting for all routes
-    app.middleware.use(RateLimitMiddleware(
-        maxRequests: 100,
-        per: 60,
-        storage: RateLimitStorageFactory.create(app: app)
-    ))
     
     // MARK: - Database Configuration
     

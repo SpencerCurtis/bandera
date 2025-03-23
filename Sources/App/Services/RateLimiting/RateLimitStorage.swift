@@ -104,12 +104,13 @@ actor RedisRateLimitStorage: RateLimitStorage {
 struct RateLimitStorageFactory {
     /// Create appropriate storage based on application configuration
     static func create(app: Application) -> RateLimitStorage {
-        if app.redis.configuration != nil {
-            app.logger.notice("Using Redis for rate limiting")
-            return RedisRateLimitStorage(app: app)
-        } else {
-            app.logger.notice("Using in-memory storage for rate limiting")
+        // If Redis is not configured, use in-memory storage
+        guard app.redis.configuration != nil else {
             return InMemoryRateLimitStorage()
         }
+        
+        // We'll use Redis storage, but if it fails to connect later, it will
+        // throw errors that can be handled by the rate limit middleware
+        return RedisRateLimitStorage(app: app)
     }
 } 
