@@ -15,25 +15,49 @@ private struct TestDatabaseKey: StorageKey {
 public func configure(_ app: Application) async throws {
     // MARK: - Middleware Configuration
     
+    // Start with a fresh middleware configuration
+    app.middleware = .init()
+    
+    // Register custom error middleware (should be first in the chain)
+    app.middleware.use(BanderaErrorMiddleware(environment: app.environment))
+    
     // Configure CORS
     let corsConfiguration = CORSMiddleware.Configuration(
         allowedOrigin: .all,
         allowedMethods: [.GET, .POST, .PUT, .OPTIONS, .DELETE, .PATCH],
         allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith, .userAgent, .accessControlAllowOrigin]
     )
-    let cors = CORSMiddleware(configuration: corsConfiguration)
-    app.middleware.use(cors)
+    app.middleware.use(CORSMiddleware(configuration: corsConfiguration))
     
-    // Serve static files from the Public directory
+    // Serve files from /Public folder
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
-
+    
     // Configure session management
     app.sessions.use(.memory)
     app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
-    app.middleware.use(app.sessions.middleware)
     
-    // Register custom error middleware (should be first in the chain)
-    app.registerErrorMiddleware()
+    // Configure Redis for rate limiting (if not testing)
+    if app.environment != .testing {
+        try app.redis.configuration = .init(
+            hostname: Environment.get("REDIS_HOST") ?? "localhost",
+            port: Int(Environment.get("REDIS_PORT") ?? "6379") ?? 6379,
+            password: Environment.get("REDIS_PASSWORD"),
+            pool: .init(
+                maximumConnectionCount: .maximumPreservedConnections(1),
+                minimumConnectionCount: 1,
+                connectionBackoffFactor: 1,
+                initialConnectionBackoffDelay: .milliseconds(100),
+                connectionRetryTimeout: .seconds(1)
+            )
+        )
+    }
+    
+    // Configure rate limiting for all routes
+    app.middleware.use(RateLimitMiddleware(
+        maxRequests: 100,
+        per: 60,
+        storage: RateLimitStorageFactory.create(app: app)
+    ))
     
     // MARK: - Database Configuration
     
@@ -43,15 +67,6 @@ public func configure(_ app: Application) async throws {
         // Configure SQLite database for development and testing
         app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
     }
-
-    // MARK: - Redis Configuration
-    
-    // Configure Redis for caching and real-time updates
-    app.redis.configuration = try RedisConfiguration(
-        hostname: Environment.get("REDIS_HOST") ?? "localhost",
-        port: Environment.get("REDIS_PORT").flatMap(Int.init(_:)) ?? 6379,
-        password: Environment.get("REDIS_PASSWORD")
-    )
 
     // MARK: - JWT Configuration
     

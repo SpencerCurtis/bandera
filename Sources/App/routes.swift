@@ -1,49 +1,42 @@
 import Vapor
 
-/// Registers all routes for the application.
-///
-/// This function sets up all the route collections and individual routes for the application.
-/// It organizes routes by functionality (auth, feature flags, dashboard, etc.) and
-/// registers them with the application.
-///
-/// - Parameter app: The Vapor application to register routes with
-/// - Throws: An error if route registration fails
-func routes(_ app: Application) throws {
+/// Register your application's routes here.
+public func routes(_ app: Application) throws {
+    // MARK: - Root Route
+    
+    // Root route - redirect to dashboard if authenticated, login if not
+    app.get { req async throws -> Response in
+        if req.auth.has(User.self) {
+            return req.redirect(to: "/dashboard")
+        } else {
+            return req.redirect(to: "/auth/login")
+        }
+    }
+    
+    // MARK: - Health Check Routes
+    
+    // Register health check routes
+    try app.register(collection: HealthController())
+    
     // MARK: - Authentication Routes
     
     // Register authentication routes (login, register, logout)
-    // These routes handle user authentication and session management
-    try app.register(collection: AuthController())
-    
-    // MARK: - Feature Flag Routes
-    
-    // Register feature flag routes (CRUD operations)
-    // These routes handle feature flag management
-    try app.register(collection: FeatureFlagController())
+    try app.register(collection: AuthController(app: app))
     
     // MARK: - Dashboard Routes
     
-    // Register dashboard routes (web interface)
-    // These routes provide a web interface for managing feature flags
+    // Register dashboard routes (protected by authentication)
     try app.register(collection: DashboardController())
     
-    // MARK: - WebSocket Routes
+    // MARK: - Feature Flag Routes
     
-    // Register WebSocket routes for real-time updates
-    // These routes handle WebSocket connections for real-time feature flag updates
-    try app.register(collection: WebSocketController())
+    // Register feature flag routes (protected by admin role)
+    try app.register(collection: FeatureFlagController())
     
-    // MARK: - Routes Page
+    // MARK: - Test Routes
     
-    // Register routes controller for displaying all available routes
-    try app.register(collection: RoutesController())
-    
-    // MARK: - Health Check Route
-    
-    // Basic health check route for monitoring
-    // This route is used to verify that the application is running
-    let healthRoute = app.get("health") { req async -> String in
-        "OK"
-    }
-    healthRoute.userInfo["description"] = "Health check endpoint to verify the application is running"
+    // Register test routes in non-production environments
+    #if DEBUG
+    try app.register(collection: TestController())
+    #endif
 }
