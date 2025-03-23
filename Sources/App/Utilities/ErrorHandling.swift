@@ -41,7 +41,7 @@ enum ErrorHandling {
     ///   - resourceName: The name of the resource type
     /// - Returns: A domain-specific error
     static func handleAccessDenied<T: CustomStringConvertible>(id: T, resourceName: String) -> any BanderaErrorProtocol {
-        return AuthenticationError.accessDenied
+        return AuthenticationError.insufficientPermissions
     }
     
     /// Handles a validation error for a specific field.
@@ -84,7 +84,7 @@ enum ErrorHandling {
             case 401:
                 throw AuthenticationError.authenticationRequired
             case 403:
-                throw AuthenticationError.accessDenied
+                throw AuthenticationError.insufficientPermissions
             case 404:
                 throw ResourceError.notFound(error.reason)
             case 409:
@@ -115,6 +115,24 @@ enum ErrorHandling {
             } else {
                 throw ServerError.internal(error.localizedDescription)
             }
+        }
+    }
+    
+    /// Handle HTTP errors
+    /// - Parameter error: The HTTP error to handle
+    /// - Throws: A domain-specific error
+    static func handleHTTPError(_ error: AbortError) throws {
+        switch error.status.code {
+        case 401:
+            throw AuthenticationError.authenticationRequired
+        case 403:
+            throw AuthenticationError.insufficientPermissions
+        case 404:
+            throw ResourceError.notFound(error.reason)
+        case 429:
+            throw RateLimitError.tooManyRequests
+        default:
+            throw error
         }
     }
 } 

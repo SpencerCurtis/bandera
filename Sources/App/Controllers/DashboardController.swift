@@ -4,16 +4,14 @@ import Fluent
 // Renamed from AdminController to DashboardController to reflect its more general purpose
 struct DashboardController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Use the RedirectingAuthMiddleware instead of AuthMiddleware.standard
-        let protected = routes.grouped(RedirectingAuthMiddleware.standard)
+        // Protected routes require authentication
+        let protected = routes.grouped(JWTAuthMiddleware.standard)
         
-        // Rename from admin to dashboard
-        let dashboard = protected.grouped("dashboard")
-        dashboard.get(use: self.dashboard)
+        protected.get("dashboard", use: dashboard)
+        protected.get("dashboard", "create-flag", use: createFlag)
+        protected.post("dashboard", "create-flag", use: handleCreateFlag)
         
-        let flags = dashboard.grouped("feature-flags")
-        flags.get("create", use: createForm)
-        flags.post("create", use: create)
+        let flags = protected.grouped("feature-flags")
         flags.get(":id", "edit", use: editForm)
         flags.post(":id", "edit", use: update)
         flags.post(":id", "delete", use: delete)
@@ -93,7 +91,7 @@ struct DashboardController: RouteCollection {
     }
     
     @Sendable
-    func createForm(req: Request) async throws -> View {
+    func createFlag(req: Request) async throws -> View {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self) else {
             throw AuthenticationError.authenticationRequired
@@ -157,7 +155,7 @@ struct DashboardController: RouteCollection {
     // MARK: - Form Handlers
     
     @Sendable
-    func create(req: Request) async throws -> Response {
+    func handleCreateFlag(req: Request) async throws -> Response {
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {

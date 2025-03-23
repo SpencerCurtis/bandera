@@ -1,17 +1,18 @@
 import Fluent
 import Vapor
 
+/// Model representing a user-specific override for a feature flag.
 final class UserFeatureFlag: Model, Content {
     static let schema = "user_feature_flags"
     
     @ID(key: .id)
     var id: UUID?
     
-    @Field(key: "user_id")
-    var userId: String
-    
     @Parent(key: "feature_flag_id")
     var featureFlag: FeatureFlag
+    
+    @Parent(key: "user_id")
+    var user: User
     
     @Field(key: "value")
     var value: String
@@ -25,13 +26,34 @@ final class UserFeatureFlag: Model, Content {
     init() { }
     
     init(id: UUID? = nil,
-         userId: String,
          featureFlagId: UUID,
+         userId: UUID,
          value: String) {
         self.id = id
-        self.userId = userId
         self.$featureFlag.id = featureFlagId
+        self.$user.id = userId
         self.value = value
+    }
+}
+
+// MARK: - Migrations
+extension UserFeatureFlag {
+    struct Migration: AsyncMigration {
+        func prepare(on database: Database) async throws {
+            try await database.schema(UserFeatureFlag.schema)
+                .id()
+                .field("feature_flag_id", .uuid, .required, .references(FeatureFlag.schema, "id", onDelete: .cascade))
+                .field("user_id", .uuid, .required, .references(User.schema, "id", onDelete: .cascade))
+                .field("value", .string, .required)
+                .field("created_at", .datetime)
+                .field("updated_at", .datetime)
+                .unique(on: "feature_flag_id", "user_id")
+                .create()
+        }
+        
+        func revert(on database: Database) async throws {
+            try await database.schema(UserFeatureFlag.schema).delete()
+        }
     }
 }
 

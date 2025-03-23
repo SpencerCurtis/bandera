@@ -4,26 +4,39 @@ import Fluent
 /// Controller for feature flag-related routes.
 struct FeatureFlagController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Create a route group that requires authentication
-        let protected = routes.grouped(AuthMiddleware.standard)
-        let featureFlags = protected.grouped("feature-flags")
+        // Protected routes require authentication
+        let protected = routes.grouped(JWTAuthMiddleware.standard)
+        let admin = routes.grouped(JWTAuthMiddleware.admin)
         
-        // User routes - require authentication but not admin
-        featureFlags.get("user", ":userId", use: getForUser)
-        featureFlags.get(use: list)
+        // Feature flag routes
+        protected.get("create", use: createForm)
+        protected.post("create", use: create)
+        protected.get(":id", use: detail)
+        protected.post(":id", "toggle", use: toggle)
+        admin.post(":id", "delete", use: delete)
+    }
+    
+    /// Renders the create feature flag form
+    @Sendable
+    func createForm(req: Request) async throws -> View {
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
         
-        // Admin routes - require admin role
-        let adminProtected = featureFlags.grouped(RoleAuthMiddleware())
-        adminProtected.post(use: create)
-        adminProtected.put(":id", use: update)
-        adminProtected.delete(":id", use: delete)
+        // Create view context
+        let context = ViewContext(
+            title: "Create Feature Flag",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin
+        )
+        
+        return try await req.view.render("feature-flag-form", context)
     }
     
     // MARK: - User Routes
     
     /// Creates a new feature flag.
     @Sendable
-    func create(req: Request) async throws -> FeatureFlag {
+    func create(req: Request) async throws -> Response {
         // Validate the request content against the DTO's validation rules
         try CreateFeatureFlagRequest.validate(content: req)
         let create = try req.content.decode(CreateFeatureFlagRequest.self)
@@ -35,7 +48,10 @@ struct FeatureFlagController: RouteCollection {
         }
         
         // Use the feature flag service to create the flag
-        return try await req.services.featureFlagService.createFlag(create, userId: userId)
+        let flag = try await req.services.featureFlagService.createFlag(create, userId: userId)
+        
+        // Redirect to the flag detail page
+        return req.redirect(to: "/dashboard/feature-flags/\(flag.id!)")
     }
     
     /// Updates an existing feature flag.
@@ -95,23 +111,57 @@ struct FeatureFlagController: RouteCollection {
         
         // Only allow access to own flags or if admin
         if !payload.isAdmin && payload.subject.value != userId {
-            throw AuthenticationError.accessDenied
+            throw AuthenticationError.insufficientPermissions
         }
         
         // Use the feature flag service to get flags with overrides
         return try await req.services.featureFlagService.getFlagsWithOverrides(userId: userId)
     }
     
-    /// Lists all feature flags for the authenticated user.
+    /// Gets detailed information about a specific feature flag.
     @Sendable
-    func list(req: Request) async throws -> [FeatureFlag] {
+    func detail(req: Request) async throws -> View {
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
+        }
+        
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get the flag details from the service
+        let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
+        
+        // Create view context
+        let context = ViewContext(
+            title: "Feature Flag Details",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            flag: flag
+        )
+        
+        // Render the view
+        return try await req.view.render("feature-flag-detail", context)
+    }
+    
+    /// Toggles a feature flag on/off.
+    @Sendable
+    func toggle(req: Request) async throws -> Response {
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
+        }
+        
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
             throw AuthenticationError.authenticationRequired
         }
         
-        // Use the feature flag service to get all flags for the user
-        return try await req.services.featureFlagService.getAllFlags(userId: userId)
+        // Toggle the flag using the service
+        _ = try await req.services.featureFlagService.toggleFlag(id: id, userId: userId)
+        
+        // Redirect back to the detail page
+        return req.redirect(to: "/dashboard/feature-flags/\(id)")
     }
 }

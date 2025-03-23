@@ -25,39 +25,13 @@ struct TestController: RouteCollection {
         // Test rate limit error
         errors.get("rate-limit") { req -> Response in
             // Create a mock rate limit error
-            let error = RateLimitError(
+            let error = RateLimitExceededError(
                 retryAfter: 180,  // 3 minutes
                 limit: 5,
                 remaining: 0,
                 reset: Int(Date().addingTimeInterval(180).timeIntervalSince1970)
             )
-            
-            // Create response
-            let response = Response(status: .tooManyRequests)
-            
-            // Add rate limit headers
-            response.headers.add(name: "X-RateLimit-Limit", value: "\(error.limit)")
-            response.headers.add(name: "X-RateLimit-Remaining", value: "\(error.remaining)")
-            response.headers.add(name: "X-RateLimit-Reset", value: "\(error.reset)")
-            response.headers.add(name: "Retry-After", value: "\(error.retryAfter)")
-            
-            // Handle based on Accept header
-            if req.headers.accept.first?.mediaType == .json {
-                let errorResponse = ErrorResponse(
-                    error: true,
-                    reason: "Rate limit exceeded. Please try again later.",
-                    statusCode: 429
-                )
-                try response.content.encode(errorResponse)
-            } else {
-                let retryInMinutes = Int(ceil(Double(error.retryAfter) / 60.0))
-                let timeMessage = retryInMinutes <= 1 ? "1 minute" : "\(retryInMinutes) minutes"
-                let message = "Too many requests. Please try again in \(timeMessage)."
-                req.session.data["error"] = message
-                response.headers.replaceOrAdd(name: .location, value: "/error")
-            }
-            
-            return response
+            throw error
         }
         
         // Test generic error

@@ -17,6 +17,7 @@ enum ErrorDomain: String, Sendable {
     case database
     case server
     case externalService
+    case rateLimit
 }
 
 // MARK: - Default Implementations
@@ -45,19 +46,15 @@ extension BanderaErrorProtocol {
 enum AuthenticationError: BanderaErrorProtocol {
     case invalidCredentials
     case authenticationRequired
-    case accessDenied
-    case tokenExpired
-    case invalidToken
-    
-    var domain: ErrorDomain {
-        return .authentication
-    }
+    case insufficientPermissions
     
     var status: HTTPStatus {
         switch self {
-        case .invalidCredentials, .authenticationRequired, .tokenExpired, .invalidToken:
+        case .invalidCredentials:
             return .unauthorized
-        case .accessDenied:
+        case .authenticationRequired:
+            return .unauthorized
+        case .insufficientPermissions:
             return .forbidden
         }
     }
@@ -65,31 +62,31 @@ enum AuthenticationError: BanderaErrorProtocol {
     var reason: String {
         switch self {
         case .invalidCredentials:
-            return "Invalid username or password"
+            return "Invalid email or password"
         case .authenticationRequired:
-            return "Authentication is required to access this resource"
-        case .accessDenied:
-            return "You do not have permission to access this resource"
-        case .tokenExpired:
-            return "Authentication token has expired"
-        case .invalidToken:
-            return "Invalid authentication token"
+            return "Authentication required"
+        case .insufficientPermissions:
+            return "Insufficient permissions"
         }
     }
     
-    var recoverySuggestion: String? {
+    var suggestion: String? {
         switch self {
         case .invalidCredentials:
-            return "Please check your username and password and try again"
+            return "Please check your email and password and try again"
         case .authenticationRequired:
             return "Please log in to access this resource"
-        case .accessDenied:
-            return "Contact an administrator if you believe you should have access"
-        case .tokenExpired:
-            return "Please log in again to refresh your session"
-        case .invalidToken:
-            return "Please log in again to obtain a valid token"
+        case .insufficientPermissions:
+            return "Please contact an administrator if you need access to this resource"
         }
+    }
+    
+    var domain: ErrorDomain {
+        return .authentication
+    }
+    
+    var headers: HTTPHeaders {
+        return [:]
     }
 }
 
@@ -324,5 +321,39 @@ enum ExternalServiceError: BanderaErrorProtocol {
     /// Provides a localized recovery suggestion
     var recoverySuggestion: String? {
         return "Please try again later or contact support if the problem persists."
+    }
+}
+
+/// Errors related to rate limiting
+enum RateLimitError: BanderaErrorProtocol {
+    case tooManyRequests
+    
+    var status: HTTPStatus {
+        switch self {
+        case .tooManyRequests:
+            return .tooManyRequests
+        }
+    }
+    
+    var reason: String {
+        switch self {
+        case .tooManyRequests:
+            return "Too many requests"
+        }
+    }
+    
+    var suggestion: String? {
+        switch self {
+        case .tooManyRequests:
+            return "Please wait a moment before trying again"
+        }
+    }
+    
+    var domain: ErrorDomain {
+        return .rateLimit
+    }
+    
+    var headers: HTTPHeaders {
+        return [:]
     }
 } 

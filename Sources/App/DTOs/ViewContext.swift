@@ -53,6 +53,12 @@ struct ViewContext: Content {
     /// Last deployment time (for health check)
     var lastDeployment: String?
     
+    /// Optional feature flag data
+    var flag: FeatureFlagDetailDTO?
+    
+    /// Optional list of feature flags
+    var flags: [FeatureFlag]?
+    
     /// Create a context for an error page
     static func error(
         status: UInt,
@@ -75,7 +81,9 @@ struct ViewContext: Content {
         error: String? = nil,
         recoverySuggestion: String? = nil,
         success: String? = nil,
-        warning: String? = nil
+        warning: String? = nil,
+        flag: FeatureFlagDetailDTO? = nil,
+        flags: [FeatureFlag]? = nil
     ) {
         self.title = title
         self.isAuthenticated = isAuthenticated
@@ -84,5 +92,7 @@ struct ViewContext: Content {
         self.recoverySuggestion = recoverySuggestion
         self.success = success
         self.warning = warning
+        self.flag = flag
+        self.flags = flags
     }
 }

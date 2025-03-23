@@ -77,14 +77,18 @@ extension FeatureFlag {
     
     /// Get all feature flags for a user with their overrides
     static func getUserFlags(userId: String, on db: Database) async throws -> FeatureFlagsContainer {
+        guard let uuid = UUID(uuidString: userId) else {
+            throw ValidationError.failed("Invalid user ID")
+        }
+        
         // Get all feature flags for this user
         let flags = try await FeatureFlag.query(on: db)
-            .filter(\FeatureFlag.$userId, .equal, UUID(uuidString: userId))
+            .filter(\FeatureFlag.$userId, .equal, uuid)
             .all()
         
         // Get user overrides
         let overrides = try await UserFeatureFlag.query(on: db)
-            .filter(\UserFeatureFlag.$userId, .equal, userId)
+            .filter(\.$user.$id, .equal, uuid)
             .with(\.$featureFlag)
             .all()
         

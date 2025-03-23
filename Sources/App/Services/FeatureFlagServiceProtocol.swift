@@ -41,6 +41,12 @@ protocol FeatureFlagServiceProtocol {
     ///   - userId: The unique identifier of the user deleting the flag
     func deleteFlag(id: UUID, userId: UUID) async throws
     
+    /// Get detailed information about a feature flag
+    func getFlagDetails(id: UUID, userId: UUID) async throws -> FeatureFlagDetailDTO
+    
+    /// Toggle a feature flag on/off
+    func toggleFlag(id: UUID, userId: UUID) async throws -> FeatureFlag
+    
     /// Broadcast a feature flag event
     /// - Parameters:
     ///   - event: The event type

@@ -25,14 +25,18 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
     }
     
     func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer {
+        guard let uuid = UUID(uuidString: userId) else {
+            throw ValidationError.failed("Invalid user ID")
+        }
+        
         // Get all feature flags for this user
         let flags = try await FeatureFlag.query(on: database)
-            .filter(\FeatureFlag.$userId, .equal, UUID(uuidString: userId))
+            .filter(\FeatureFlag.$userId, .equal, uuid)
             .all()
         
         // Get user overrides
         let overrides = try await UserFeatureFlag.query(on: database)
-            .filter(\UserFeatureFlag.$userId, .equal, userId)
+            .filter(\.$user.$id, .equal, uuid)
             .with(\.$featureFlag)
             .all()
         
@@ -64,5 +68,62 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
     
     func delete(_ flag: FeatureFlag) async throws {
         try await flag.delete(on: database)
+    }
+    
+    /// Get all user overrides for a feature flag
+    func getOverrides(flagId: UUID) async throws -> [UserFeatureFlag] {
+        try await UserFeatureFlag.query(on: database)
+            .filter(\.$featureFlag.$id == flagId)
+            .with(\.$user)
+            .all()
+    }
+    
+    /// Get all audit logs for a feature flag
+    func getAuditLogs(flagId: UUID) async throws -> [AuditLog] {
+        try await AuditLog.query(on: database)
+            .filter(\.$featureFlag.$id == flagId)
+            .with(\.$user)
+            .sort(\.$createdAt, .descending)
+            .all()
+    }
+    
+    /// Check if a feature flag is enabled
+    func isEnabled(id: UUID) async throws -> Bool {
+        // Check if the flag exists
+        _ = try await get(id: id).map { _ in true } ?? { throw ResourceError.notFound("Feature flag with ID \(id)") }()
+        
+        // Check the enabled status in the database
+        return try await FlagStatus.query(on: database)
+            .filter(\.$featureFlag.$id == id)
+            .first()
+            .map { $0.isEnabled } ?? false
+    }
+    
+    /// Set the enabled status of a feature flag
+    func setEnabled(id: UUID, enabled: Bool) async throws {
+        // Check if the flag exists
+        _ = try await get(id: id).map { _ in true } ?? { throw ResourceError.notFound("Feature flag with ID \(id)") }()
+        
+        // Update or create the flag status
+        if let status = try await FlagStatus.query(on: database)
+            .filter(\.$featureFlag.$id == id)
+            .first() {
+            status.isEnabled = enabled
+            try await status.save(on: database)
+        } else {
+            let status = FlagStatus(featureFlagId: id, isEnabled: enabled)
+            try await status.save(on: database)
+        }
+    }
+    
+    /// Create an audit log entry for a feature flag
+    func createAuditLog(type: String, message: String, flagId: UUID, userId: UUID) async throws {
+        let log = AuditLog(
+            type: type,
+            message: message,
+            featureFlagId: flagId,
+            userId: userId
+        )
+        try await log.save(on: database)
     }
 }

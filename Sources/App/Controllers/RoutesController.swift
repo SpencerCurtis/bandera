@@ -3,15 +3,11 @@ import Vapor
 /// Controller for displaying all available routes in the application
 struct RoutesController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Create a route group with authentication and admin role check
-        // Use AuthMiddleware.standard instead of RedirectingAuthMiddleware to avoid redirect loops
-        let protectedRoutes = routes
-            .grouped(AuthMiddleware.standard) // Require authentication without redirect
-            .grouped(RoleAuthMiddleware())    // Require admin role
+        // Protected routes require authentication and admin role
+        let protectedRoutes = routes.grouped(JWTAuthMiddleware.adminAPI)
         
         // Create a route for viewing all routes (admin only)
-        let routesRoute = protectedRoutes.get("routes", use: listRoutes)
-        routesRoute.userInfo["description"] = "Admin-only page that displays all available routes in the application"
+        protectedRoutes.get("routes", use: listRoutes)
     }
     
     /// Handler for displaying all available routes

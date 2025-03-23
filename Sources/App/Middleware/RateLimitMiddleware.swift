@@ -61,14 +61,14 @@ struct RateLimitMiddleware: AsyncMiddleware {
 }
 
 /// Error thrown when rate limit is exceeded
-struct RateLimitError: Error {
+struct RateLimitExceededError: Error {
     let retryAfter: Int
     let limit: Int
     let remaining: Int
     let reset: Int
     
-    static var generic: RateLimitError {
-        RateLimitError(retryAfter: 60, limit: 0, remaining: 0, reset: Int(Date().addingTimeInterval(60).timeIntervalSince1970))
+    static var generic: RateLimitExceededError {
+        RateLimitExceededError(retryAfter: 60, limit: 0, remaining: 0, reset: Int(Date().addingTimeInterval(60).timeIntervalSince1970))
     }
 }
 

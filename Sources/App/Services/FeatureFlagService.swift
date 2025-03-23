@@ -37,7 +37,7 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             
             // Check if flag belongs to this user
             if flag.$userId.wrappedValue != userId {
-                throw AuthenticationError.accessDenied
+                throw AuthenticationError.insufficientPermissions
             }
             
             return flag
@@ -80,6 +80,17 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             // Create the flag
             let flag = FeatureFlag.create(from: dto, userId: userId)
             try await repository.save(flag)
+            
+            // Create initial flag status (disabled by default)
+            try await repository.setEnabled(id: flag.id!, enabled: false)
+            
+            // Create audit log
+            try await repository.createAuditLog(
+                type: "created",
+                message: "Flag created",
+                flagId: flag.id!,
+                userId: userId
+            )
             
             // Broadcast the event
             try await broadcastEvent(FeatureFlagEventType.created, flag: flag)
@@ -163,6 +174,67 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
         
         // Broadcast to all clients
         try await webSocketService.broadcast(event: FeatureFlagEventType.deleted.rawValue, data: payload)
+    }
+    
+    /// Get detailed information about a feature flag
+    /// - Parameters:
+    ///   - id: The ID of the feature flag
+    ///   - userId: The ID of the user requesting the details
+    /// - Returns: The feature flag details DTO
+    /// - Throws: ResourceError if the flag is not found or not accessible
+    func getFlagDetails(id: UUID, userId: UUID) async throws -> FeatureFlagDetailDTO {
+        return try await withErrorHandling {
+            // Get the flag
+            let flag = try await getFlag(id: id, userId: userId)
+            
+            // Get user overrides
+            let overrides = try await repository.getOverrides(flagId: id)
+            
+            // Get audit logs
+            let auditLogs = try await repository.getAuditLogs(flagId: id)
+            
+            // Get enabled status
+            let isEnabled = try await repository.isEnabled(id: id)
+            
+            // Convert to DTO
+            return flag.toDetailDTO(
+                isEnabled: isEnabled,
+                userOverrides: overrides,
+                auditLogs: auditLogs
+            )
+        }
+    }
+    
+    /// Toggle a feature flag on/off
+    /// - Parameters:
+    ///   - id: The ID of the feature flag
+    ///   - userId: The ID of the user toggling the flag
+    /// - Returns: The updated feature flag
+    /// - Throws: ResourceError if the flag cannot be toggled
+    func toggleFlag(id: UUID, userId: UUID) async throws -> FeatureFlag {
+        return try await withErrorHandling {
+            // Get the flag
+            let flag = try await getFlag(id: id, userId: userId)
+            
+            // Get current status
+            let isEnabled = try await repository.isEnabled(id: id)
+            
+            // Toggle the flag
+            try await repository.setEnabled(id: id, enabled: !isEnabled)
+            
+            // Create audit log
+            try await repository.createAuditLog(
+                type: isEnabled ? "disabled" : "enabled",
+                message: "Flag \(isEnabled ? "disabled" : "enabled")",
+                flagId: id,
+                userId: userId
+            )
+            
+            // Broadcast the event
+            try await broadcastEvent(FeatureFlagEventType.updated, flag: flag)
+            
+            return flag
+        }
     }
 }
 

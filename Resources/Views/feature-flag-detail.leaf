@@ -1,0 +1,145 @@
+#extend("layout"):
+    #export("content"):
+        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                        Feature Flag Details
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        #(flag.key)
+                    </p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="/dashboard/feature-flags/#(flag.id)/edit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Edit
+                    </a>
+                    <form method="POST" action="/dashboard/feature-flags/#(flag.id)/toggle" class="inline">
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white #if(flag.isEnabled): bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 #else: bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 #endif focus:outline-none focus:ring-2 focus:ring-offset-2 #if(flag.isEnabled): focus:ring-red-500 #else: focus:ring-green-500 #endif">
+                            #if(flag.isEnabled):
+                                Disable Flag
+                            #else:
+                                Enable Flag
+                            #endif
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-200 dark:border-gray-700">
+                <dl>
+                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
+                            <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium #if(flag.isEnabled): bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 #else: bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 #endif">
+                                #if(flag.isEnabled):
+                                    Enabled
+                                #else:
+                                    Disabled
+                                #endif
+                            </span>
+                        </dd>
+                    </div>
+                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Type</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.type)</dd>
+                    </div>
+                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Default Value</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.defaultValue)</dd>
+                    </div>
+                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Description</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.description)</dd>
+                    </div>
+                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#date(flag.createdAt, "yyyy-MM-dd HH:mm:ss")</dd>
+                    </div>
+                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#date(flag.updatedAt, "yyyy-MM-dd HH:mm:ss")</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- User Overrides Section -->
+            <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">User Overrides</h4>
+                #if(count(flag.userOverrides) > 0):
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Value</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Updated</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                #for(override in flag.userOverrides):
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.user.email)</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.value)</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#date(override.updatedAt, "yyyy-MM-dd HH:mm:ss")</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <form method="POST" action="/dashboard/feature-flags/#(flag.id)/overrides/#(override.id)/delete" class="inline">
+                                                <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Remove</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                #endfor
+                            </tbody>
+                        </table>
+                    </div>
+                #else:
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No user overrides configured.</p>
+                #endif
+
+                <div class="mt-6">
+                    <a href="/feature-flags/#(flag.id)/overrides/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Add User Override
+                    </a>
+                </div>
+            </div>
+
+            <!-- Audit Log Section -->
+            <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Audit Log</h4>
+                #if(count(flag.auditLogs) > 0):
+                    <div class="flow-root">
+                        <ul class="-mb-8">
+                            #for(log in flag.auditLogs):
+                                <li>
+                                    <div class="relative pb-8">
+                                        #if(!isLast):
+                                            <span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700"></span>
+                                        #endif
+                                        <div class="relative flex space-x-3">
+                                            <div>
+                                                <span class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white dark:ring-gray-800 #if(log.type == "enabled"): bg-green-500 #elseif(log.type == "disabled"): bg-red-500 #else: bg-blue-500 #endif">
+                                                    <!-- Icon based on action type -->
+                                                </span>
+                                            </div>
+                                            <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                                <div>
+                                                    <p class="text-sm text-gray-500 dark:text-gray-400">#(log.message) <span class="font-medium text-gray-900 dark:text-gray-300">#(log.user.email)</span></p>
+                                                </div>
+                                                <div class="text-right text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
+                                                    #date(log.createdAt, "yyyy-MM-dd HH:mm:ss")
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            #endfor
+                        </ul>
+                    </div>
+                #else:
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No audit logs available.</p>
+                #endif
+            </div>
+        </div>
+    #endexport
+#endextend 

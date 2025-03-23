@@ -37,4 +37,19 @@ protocol FeatureFlagRepositoryProtocol {
     /// Delete a feature flag
     /// - Parameter flag: The feature flag to delete
     func delete(_ flag: FeatureFlag) async throws
+    
+    /// Get all user overrides for a feature flag
+    func getOverrides(flagId: UUID) async throws -> [UserFeatureFlag]
+    
+    /// Get all audit logs for a feature flag
+    func getAuditLogs(flagId: UUID) async throws -> [AuditLog]
+    
+    /// Check if a feature flag is enabled
+    func isEnabled(id: UUID) async throws -> Bool
+    
+    /// Set the enabled status of a feature flag
+    func setEnabled(id: UUID, enabled: Bool) async throws
+    
+    /// Create an audit log entry for a feature flag
+    func createAuditLog(type: String, message: String, flagId: UUID, userId: UUID) async throws
 } 

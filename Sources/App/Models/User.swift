@@ -108,4 +108,15 @@ extension User: @unchecked Sendable {
     // 1. All properties use Fluent property wrappers that handle thread safety
     // 2. Properties are only modified through Fluent's thread-safe operations
     // 3. The Model protocol requires internal access for setters
+}
+
+// MARK: - DTO Conversion
+extension User {
+    /// Convert to a simplified user DTO.
+    func toDTO() -> UserDTO {
+        UserDTO(
+            id: id!,
+            email: email
+        )
+    }
 } 

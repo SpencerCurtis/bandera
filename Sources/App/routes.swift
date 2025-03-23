@@ -1,47 +1,64 @@
 import Vapor
+import Fluent
 
 /// Register your application's routes here.
-public func routes(_ app: Application) throws {
-    // MARK: - Root Route
-    
-    // Root route - redirect to dashboard if authenticated, login if not
+func routes(_ app: Application) throws {
+    // Public routes
     app.get { req async throws -> Response in
+        // If user is authenticated, redirect to dashboard, otherwise to login
         if req.auth.has(User.self) {
             return req.redirect(to: "/dashboard")
-        } else {
-            return req.redirect(to: "/auth/login")
+        }
+        return req.redirect(to: "/auth/login")
+    }
+    
+    // Convenience redirect from /login to /auth/login
+    app.get("login") { req -> Response in
+        return req.redirect(to: "/auth/login")
+    }
+    
+    // Register the auth controller
+    let authController = AuthController()
+    try app.register(collection: authController)
+    
+    // Dashboard routes
+    let dashboard = app.grouped("dashboard").grouped(JWTAuthMiddleware.standard)
+    dashboard.get { req async throws -> View in
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get all flags for the user
+        let flags = try await req.services.featureFlagService.getAllFlags(userId: user.id!)
+        
+        // Create view context
+        let context = ViewContext(
+            title: "Dashboard",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            flags: flags
+        )
+        
+        return try await req.view.render("dashboard", context)
+    }
+    
+    // Feature flag routes under dashboard/feature-flags
+    let featureFlags = dashboard.grouped("feature-flags")
+    let featureFlagController = FeatureFlagController()
+    try featureFlags.register(collection: featureFlagController)
+    
+    // WebSocket routes
+    let webSocketController = WebSocketController()
+    try app.register(collection: webSocketController)
+    
+    // Error test routes (only in development)
+    if app.environment == .development {
+        app.get("error") { req -> Response in
+            throw Abort(.internalServerError, reason: "Test error")
         }
     }
     
-    // MARK: - Health Check Routes
-    
-    // Register health check routes
-    try app.register(collection: HealthController())
-    
-    // MARK: - Authentication Routes
-    
-    // Register authentication routes (login, register, logout)
-    try app.register(collection: AuthController(app: app))
-    
-    // MARK: - Dashboard Routes
-    
-    // Register dashboard routes (protected by authentication)
-    try app.register(collection: DashboardController())
-    
-    // MARK: - Feature Flag Routes
-    
-    // Register feature flag routes (protected by admin role)
-    try app.register(collection: FeatureFlagController())
-    
-    // MARK: - Routes Page
-    
-    // Register routes controller for displaying all available routes
-    try app.register(collection: RoutesController())
-    
-    // MARK: - Test Routes
-    
-    // Register test routes in non-production environments
-    #if DEBUG
-    try app.register(collection: TestController())
-    #endif
+    // Fallback route for 404s
+    app.get(.catchall) { req -> Response in
+        throw Abort(.notFound)
+    }
 }
