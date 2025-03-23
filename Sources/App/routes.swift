@@ -33,6 +33,11 @@ public func routes(_ app: Application) throws {
     // Register feature flag routes (protected by admin role)
     try app.register(collection: FeatureFlagController())
     
+    // MARK: - Routes Page
+    
+    // Register routes controller for displaying all available routes
+    try app.register(collection: RoutesController())
+    
     // MARK: - Test Routes
     
     // Register test routes in non-production environments

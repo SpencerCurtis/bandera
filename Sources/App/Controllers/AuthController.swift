@@ -13,21 +13,19 @@ struct AuthController: RouteCollection {
         // Create a route group for auth routes
         let auth = routes.grouped("auth")
         
-        // Create a rate limit middleware that allows 5 requests per minute
+        // Create a rate limit middleware that allows 30 requests per minute
         let rateLimitMiddleware = RateLimitMiddleware(
-            maxRequests: 5,
+            maxRequests: 30,
             per: 60,
             storage: RateLimitStorageFactory.create(app: app)
         )
         
-        // Group all auth routes under rate limiting
+        // Add GET routes without rate limiting
+        auth.get("login", use: loginPage)
+        
+        // Group POST routes under rate limiting
         let rateLimitGroup = auth.grouped(rateLimitMiddleware)
-        
-        // Login routes
-        rateLimitGroup.get("login", use: loginPage)
         rateLimitGroup.post("login", use: login)
-        
-        // Register and logout routes
         rateLimitGroup.post("register", use: register)
         rateLimitGroup.post("logout", use: logout)
     }
