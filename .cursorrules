@@ -1,0 +1,162 @@
+# Bandera Feature Flag Service - Cursor Rules
+
+# File Organization
+rule "Organize Swift files into appropriate directories" {
+  description = "Keep Swift files organized in the correct directories based on their role"
+  patterns = [
+    "Controllers should be in Sources/App/Controllers/",
+    "Models should be in Sources/App/Models/",
+    "Repositories should be in Sources/App/Repositories/",
+    "Services should be in Sources/App/Services/",
+    "Middleware should be in Sources/App/Middleware/",
+    "DTOs should be in Sources/App/DTOs/",
+    "View templates should be in Resources/Views/",
+    "Tests should be in Tests/AppTests/"
+  ]
+}
+
+# Naming Conventions
+rule "Use consistent naming conventions" {
+  description = "Follow Swift naming conventions and project-specific patterns"
+  patterns = [
+    "Controller names should end with 'Controller'",
+    "Repository names should end with 'Repository'",
+    "Service names should end with 'Service'",
+    "Protocol names for repositories should end with 'RepositoryProtocol'",
+    "Protocol names for services should end with 'ServiceProtocol'",
+    "View template files should use .leaf extension",
+    "Test files should end with 'Tests'"
+  ]
+}
+
+# Code Structure
+rule "Maintain consistent code structure" {
+  description = "Follow consistent patterns for code organization within files"
+  patterns = [
+    "Use MARK comments to separate major sections",
+    "Place protocol conformances in extensions",
+    "Group related properties and methods together",
+    "Place private helpers in a private extension or at the bottom of the file",
+    "Use // MARK: - for section headers"
+  ]
+}
+
+# Error Handling
+rule "Follow error handling patterns" {
+  description = "Use consistent error handling throughout the application"
+  patterns = [
+    "Define custom errors in a dedicated Errors.swift file",
+    "Custom errors should conform to AbortError",
+    "Use async/await for asynchronous error handling",
+    "Include recovery suggestions in error messages",
+    "Log errors appropriately using app.logger"
+  ]
+}
+
+# Documentation
+rule "Maintain consistent documentation" {
+  description = "Follow documentation standards throughout the codebase"
+  patterns = [
+    "Use /// for documentation comments",
+    "Document all public APIs",
+    "Include parameter descriptions for complex methods",
+    "Add examples for non-obvious usage",
+    "Keep README.md up to date with major changes"
+  ]
+}
+
+# Testing
+rule "Follow testing best practices" {
+  description = "Maintain consistent testing patterns"
+  patterns = [
+    "Test files should mirror the structure of source files",
+    "Use descriptive test names that explain the scenario",
+    "Follow Given/When/Then pattern in test methods",
+    "Use test helpers for common setup code",
+    "Mock external dependencies in tests"
+  ]
+}
+
+# View Templates
+rule "Maintain consistent view template structure" {
+  description = "Follow patterns for Leaf templates"
+  patterns = [
+    "Use #extend(\"layout\") for page templates",
+    "Place page-specific CSS in a dedicated section",
+    "Use consistent naming for template variables",
+    "Follow BEM naming convention for CSS classes",
+    "Keep templates DRY by using partials"
+  ]
+}
+
+# Database
+rule "Follow database best practices" {
+  description = "Maintain consistent database patterns"
+  patterns = [
+    "Use migrations for schema changes",
+    "Include down migrations for reversibility",
+    "Use meaningful names for foreign key constraints",
+    "Add indexes for frequently queried fields",
+    "Use soft deletes where appropriate"
+  ]
+}
+
+# API Design
+rule "Maintain consistent API design" {
+  description = "Follow RESTful API design principles"
+  patterns = [
+    "Use plural nouns for resource endpoints",
+    "Follow standard HTTP methods (GET, POST, PUT, DELETE)",
+    "Return appropriate HTTP status codes",
+    "Include error details in response body",
+    "Version APIs appropriately"
+  ]
+}
+
+# Security
+rule "Follow security best practices" {
+  description = "Maintain consistent security patterns"
+  patterns = [
+    "Use environment variables for sensitive configuration",
+    "Implement rate limiting for public endpoints",
+    "Validate and sanitize user input",
+    "Use secure headers in responses",
+    "Follow principle of least privilege"
+  ]
+}
+
+# Performance
+rule "Maintain performance standards" {
+  description = "Follow performance best practices"
+  patterns = [
+    "Use async/await for concurrent operations",
+    "Implement caching where appropriate",
+    "Optimize database queries",
+    "Use pagination for large result sets",
+    "Profile and optimize slow endpoints"
+  ]
+}
+
+# Configuration
+rule "Follow configuration patterns" {
+  description = "Maintain consistent configuration handling"
+  patterns = [
+    "Use environment variables for configuration",
+    "Provide sensible defaults for optional configuration",
+    "Document all configuration options",
+    "Handle missing configuration gracefully",
+    "Use type-safe configuration access"
+  ]
+}
+
+# Dependency Management
+rule "Follow dependency management best practices" {
+  description = "Maintain consistent dependency handling"
+  patterns = [
+    "Specify exact versions in Package.swift",
+    "Document third-party dependencies in README",
+    "Keep dependencies up to date",
+    "Minimize number of dependencies",
+    "Use dependency injection"
+  ]
+} 
