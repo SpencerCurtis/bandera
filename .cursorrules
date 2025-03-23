@@ -159,4 +159,86 @@ rule "Follow dependency management best practices" {
     "Minimize number of dependencies",
     "Use dependency injection"
   ]
+}
+
+# Framework and Architecture
+rule "Follow Vapor framework patterns" {
+  description = "Maintain consistent Vapor framework usage throughout the application"
+  patterns = [
+    "Use Vapor's built-in dependency injection via app.services",
+    "Register routes in configure.swift using route collections",
+    "Use Fluent for database operations",
+    "Use Leaf for server-side rendering",
+    "Use Content protocol for request/response models",
+    "Use async/await with Request handlers",
+    "Use Vapor's built-in middleware system",
+    "Use Environment for configuration",
+    "Use app.logger for logging",
+    "Use Vapor's authentication system"
+  ]
+}
+
+rule "Follow Leaf template patterns" {
+  description = "Maintain consistent Leaf template structure and usage"
+  patterns = [
+    "Use #extend(\"layout\") for template inheritance",
+    "Use #export(\"content\") for page content",
+    "Use ViewContext for passing data to templates",
+    "Use #if/#else/#endif for conditional rendering",
+    "Use #for loops for iterating over collections",
+    "Use partials for reusable components",
+    "Use consistent variable naming in templates",
+    "Use Tailwind CSS for styling",
+    "Use dark mode support in templates",
+    "Use responsive design patterns"
+  ]
+}
+
+rule "Follow Fluent ORM patterns" {
+  description = "Maintain consistent database access patterns using Fluent"
+  patterns = [
+    "Use @ID property wrapper for primary keys",
+    "Use @Field for model properties",
+    "Use @Parent/@Children for relationships",
+    "Use @Timestamp for created/updated timestamps",
+    "Use Migrations for schema changes",
+    "Use QueryBuilder for complex queries",
+    "Use Model protocol for database entities",
+    "Use soft deletes with @SoftDelete",
+    "Use ModelMiddleware for model hooks",
+    "Use transaction(_:) for atomic operations"
+  ]
+}
+
+# Application Architecture
+rule "Follow Bandera architectural patterns" {
+  description = "Maintain consistent application architecture specific to Bandera"
+  patterns = [
+    "Use feature flag service for managing flags",
+    "Use WebSocket service for real-time updates",
+    "Use repository pattern for data access",
+    "Use service layer for business logic",
+    "Use DTOs for API requests/responses",
+    "Use ViewContext for template data",
+    "Use JWT for authentication",
+    "Use rate limiting for API endpoints",
+    "Use environment-based configuration",
+    "Use health checks for monitoring"
+  ]
+}
+
+rule "Follow feature flag patterns" {
+  description = "Maintain consistent feature flag implementation"
+  patterns = [
+    "Use FeatureFlag model for flag definition",
+    "Use UserFeatureFlag for user overrides",
+    "Use FeatureFlagService for flag operations",
+    "Use WebSocket for real-time flag updates",
+    "Use feature flag events for tracking changes",
+    "Use feature flag caching for performance",
+    "Use typed feature flag values",
+    "Use feature flag validation",
+    "Use feature flag audit logging",
+    "Use feature flag documentation"
+  ]
 } 
