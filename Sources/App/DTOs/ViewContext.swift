@@ -20,6 +20,9 @@ struct ViewContext: Content {
     /// Optional success message
     var success: String?
     
+    /// Optional warning message
+    var warning: String?
+    
     /// Optional HTTP status code (for error pages)
     var statusCode: UInt?
     
@@ -31,6 +34,24 @@ struct ViewContext: Content {
     
     /// Optional return path for redirecting after login
     var returnTo: String?
+    
+    /// Environment name (for health check)
+    var environment: String?
+    
+    /// System uptime (for health check)
+    var uptime: String?
+    
+    /// Database connection status (for health check)
+    var databaseConnected: Bool?
+    
+    /// Redis connection status (for health check)
+    var redisConnected: Bool?
+    
+    /// Memory usage (for health check)
+    var memoryUsage: String?
+    
+    /// Last deployment time (for health check)
+    var lastDeployment: String?
     
     /// Create a context for an error page
     static func error(
@@ -45,5 +66,23 @@ struct ViewContext: Content {
         context.statusCode = status
         context.requestId = requestId
         return context
+    }
+    
+    init(
+        title: String,
+        isAuthenticated: Bool = false,
+        isAdmin: Bool = false,
+        error: String? = nil,
+        recoverySuggestion: String? = nil,
+        success: String? = nil,
+        warning: String? = nil
+    ) {
+        self.title = title
+        self.isAuthenticated = isAuthenticated
+        self.isAdmin = isAdmin
+        self.error = error
+        self.recoverySuggestion = recoverySuggestion
+        self.success = success
+        self.warning = warning
     }
 }

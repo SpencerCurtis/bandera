@@ -3,14 +3,33 @@ import Fluent
 import JWT
 
 struct AuthController: RouteCollection {
+    private let app: Application
+    
+    init(app: Application) {
+        self.app = app
+    }
+    
     func boot(routes: RoutesBuilder) throws {
-        // Use optional authentication for auth routes
-        let auth = routes.grouped(AuthMiddleware.optional).grouped("auth")
+        // Create a route group for auth routes
+        let auth = routes.grouped("auth")
         
-        auth.get("login", use: loginPage)
-        auth.post("login", use: login)
-        auth.post("register", use: register)
-        auth.post("logout", use: logout)
+        // Create a rate limit middleware that allows 5 requests per minute
+        let rateLimitMiddleware = RateLimitMiddleware(
+            maxRequests: 5,
+            per: 60,
+            storage: RateLimitStorageFactory.create(app: app)
+        )
+        
+        // Group all auth routes under rate limiting
+        let rateLimitGroup = auth.grouped(rateLimitMiddleware)
+        
+        // Login routes
+        rateLimitGroup.get("login", use: loginPage)
+        rateLimitGroup.post("login", use: login)
+        
+        // Register and logout routes
+        rateLimitGroup.post("register", use: register)
+        rateLimitGroup.post("logout", use: logout)
     }
     
     // Show login page
