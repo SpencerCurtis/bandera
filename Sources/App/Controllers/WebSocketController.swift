@@ -14,14 +14,34 @@ struct WebSocketController: RouteCollection {
             // Send initial feature flags
             if let userId = req.auth.get(UserJWTPayload.self)?.subject.value,
                let userIdUUID = UUID(userId) {
-                Task {
+                Task<Void, Never> {
                     do {
                         let flags = try await req.services.featureFlagService.getAllFlags(userId: userIdUUID)
-                        let data = try JSONEncoder().encode(flags)
-                        try await ws.send([UInt8](data))
+                        
+                        // Format the flags as JSON
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                        
+                        let flagsPayload = flags.map { flag in
+                            return [
+                                "id": flag.id?.uuidString ?? "",
+                                "key": flag.key,
+                                "value": flag.defaultValue,
+                                "valueType": flag.type.rawValue,
+                                "updatedAt": formatter.string(from: flag.updatedAt ?? Date())
+                            ]
+                        }
+                        
+                        // Convert to JSON
+                        let json = try JSONSerialization.data(withJSONObject: [
+                            "type": "initialData",
+                            "flagsUrl": "/api/flags",
+                            "flags": flagsPayload
+                        ])
+                        
+                        try await ws.send([UInt8](json))
                     } catch {
-                        req.logger.error("Failed to send initial flags: \(error)")
-                        try? await ws.send("Error: Failed to send initial flags")
+                        req.logger.error("Error sending initial data to WebSocket: \(error)")
                     }
                 }
             }
@@ -47,13 +67,21 @@ struct WebSocketController: RouteCollection {
                 let connectionId = UUID()
                 req.logger.info("WebSocket connection established with ID: \(connectionId)")
                 
-                Task {
+                Task<Void, Never> {
                     await req.services.webSocketService.add(ws, id: connectionId)
                     
-                    ws.onClose.whenComplete { _ in
-                        Task {
-                            req.logger.info("WebSocket connection closed: \(connectionId)")
+                    ws.onText { ws, text in
+                        req.logger.debug("Received text message: \(text)")
+                    }
+                    
+                    ws.onBinary { ws, binary in
+                        req.logger.debug("Received binary message of \(binary.readableBytes) bytes")
+                    }
+                    
+                    ws.onClose.whenComplete { result in
+                        Task<Void, Never> {
                             await req.services.webSocketService.remove(id: connectionId)
+                            req.logger.info("WebSocket connection closed with ID: \(connectionId)")
                         }
                     }
                 }
@@ -71,13 +99,21 @@ struct WebSocketController: RouteCollection {
                 let connectionId = UUID()
                 req.logger.info("WebSocket connection established with ID: \(connectionId)")
                 
-                Task {
+                Task<Void, Never> {
                     await req.services.webSocketService.add(ws, id: connectionId)
                     
-                    ws.onClose.whenComplete { _ in
-                        Task {
-                            req.logger.info("WebSocket connection closed: \(connectionId)")
+                    ws.onText { ws, text in
+                        req.logger.debug("Received text message: \(text)")
+                    }
+                    
+                    ws.onBinary { ws, binary in
+                        req.logger.debug("Received binary message of \(binary.readableBytes) bytes")
+                    }
+                    
+                    ws.onClose.whenComplete { result in
+                        Task<Void, Never> {
                             await req.services.webSocketService.remove(id: connectionId)
+                            req.logger.info("WebSocket connection closed with ID: \(connectionId)")
                         }
                     }
                 }

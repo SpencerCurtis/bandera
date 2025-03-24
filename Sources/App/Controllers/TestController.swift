@@ -13,7 +13,13 @@ struct TestController: RouteCollection {
                 title: "Test Routes",
                 isAuthenticated: req.auth.get(UserJWTPayload.self) != nil,
                 isAdmin: req.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
-                warning: "⚠️ These routes are only available in debug builds and should not be used in production."
+                warningMessage: "⚠️ These routes are only available in debug builds and should not be used in production.",
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
             )
             return try await req.view.render("test/index", context)
         }
@@ -44,8 +50,16 @@ struct TestController: RouteCollection {
         errors.get("with-suggestion") { req -> Response in
             let context = ViewContext(
                 title: "Error",
-                error: "Test Error with Recovery",
-                recoverySuggestion: "This is a test recovery suggestion. You might want to try X, Y, or Z."
+                isAuthenticated: true,
+                isAdmin: true,
+                errorMessage: "Test Error with Recovery",
+                warningMessage: "This is a test recovery suggestion. You might want to try X, Y, or Z.",
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
             )
             return try await req.view.render("error", context).encodeResponse(for: req)
         }

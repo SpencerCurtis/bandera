@@ -64,4 +64,10 @@ struct UserRepository: UserRepositoryProtocol {
     func getAllUsers() async throws -> [User] {
         try await User.query(on: database).all()
     }
+    
+    func findByEmail(_ email: String) async throws -> User? {
+        return try await User.query(on: database)
+            .filter(\.$email == email)
+            .first()
+    }
 } 

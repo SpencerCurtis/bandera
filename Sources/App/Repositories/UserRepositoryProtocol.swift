@@ -36,4 +36,9 @@ protocol UserRepositoryProtocol {
     /// Get all users
     /// - Returns: All users in the system
     func getAllUsers() async throws -> [User]
+    
+    /// Find a user by email
+    /// - Parameter email: The email to search for
+    /// - Returns: The user if found, nil otherwise
+    func findByEmail(_ email: String) async throws -> User?
 } 

@@ -8,10 +8,10 @@ struct DashboardController: RouteCollection {
         let protected = routes.grouped(JWTAuthMiddleware.standard)
         
         protected.get("dashboard", use: dashboard)
-        protected.get("dashboard", "create-flag", use: createFlag)
-        protected.post("dashboard", "create-flag", use: handleCreateFlag)
+        protected.get("dashboard", "feature-flags", "create", use: createFlag)
+        protected.post("dashboard", "feature-flags", "create", use: handleCreateFlag)
         
-        let flags = protected.grouped("feature-flags")
+        let flags = protected.grouped("dashboard", "feature-flags")
         flags.get(":id", "edit", use: editForm)
         flags.post(":id", "edit", use: update)
         flags.post(":id", "delete", use: delete)
@@ -35,9 +35,9 @@ struct DashboardController: RouteCollection {
         var title: String
         var isAuthenticated: Bool
         var isAdmin: Bool
-        var error: String?
+        var errorMessage: String?
         var recoverySuggestion: String?
-        var success: String?
+        var successMessage: String?
         var flag: FeatureFlag?
     }
     
@@ -72,22 +72,30 @@ struct DashboardController: RouteCollection {
         // Get user-specific flags using the feature flag service
         let featureFlags = try await req.services.featureFlagService.getAllFlags(userId: userId)
         
-        // Create the context with the feature flags
-        let context = ViewContext(title: "Dashboard")
+        // Get the user's organizations
+        let organizationService = try req.organizationService()
+        let organizations = try await organizationService.getForUser(userId: userId)
         
-        // Create the dashboard context
-        let dashboardContext = DashboardContext(
-            title: context.title,
+        // Create the context with the feature flags and organizations
+        var context = ViewContext(
+            title: "Dashboard",
             isAuthenticated: true,
             isAdmin: payload.isAdmin,
-            error: context.error,
-            recoverySuggestion: context.recoverySuggestion,
-            success: context.success,
-            flags: featureFlags
+            environment: "development",
+            uptime: "N/A",
+            databaseConnected: true,
+            redisConnected: true,
+            memoryUsage: "N/A",
+            lastDeployment: "N/A",
+            flags: featureFlags,
+            organizations: organizations
         )
         
+        // Check for flash messages
+        req.getFlashMessages(&context)
+        
         // Render the dashboard template
-        return try await req.view.render("dashboard", dashboardContext)
+        return try await req.view.render("dashboard", context)
     }
     
     @Sendable
@@ -98,16 +106,26 @@ struct DashboardController: RouteCollection {
         }
         
         // Create the context for the form
-        let context = ViewContext(title: "Create Feature Flag")
+        let context = ViewContext(
+            title: "Create Feature Flag",
+            isAuthenticated: true,
+            isAdmin: payload.isAdmin,
+            environment: "development",
+            uptime: "N/A",
+            databaseConnected: true,
+            redisConnected: true,
+            memoryUsage: "N/A",
+            lastDeployment: "N/A"
+        )
         
         // Create the form context
         let formContext = FeatureFlagFormContext(
             title: context.title,
             isAuthenticated: true,
             isAdmin: payload.isAdmin,
-            error: context.error,
-            recoverySuggestion: context.recoverySuggestion,
-            success: context.success,
+            errorMessage: context.errorMessage,
+            recoverySuggestion: nil,
+            successMessage: context.successMessage,
             flag: nil
         )
         
@@ -135,16 +153,27 @@ struct DashboardController: RouteCollection {
         }
         
         // Create the context with the feature flag
-        let context = ViewContext(title: "Edit Feature Flag")
+        let context = ViewContext(
+            title: "Edit Feature Flag",
+            isAuthenticated: true,
+            isAdmin: payload.isAdmin,
+            environment: "development",
+            uptime: "N/A",
+            databaseConnected: true,
+            redisConnected: true,
+            memoryUsage: "N/A",
+            lastDeployment: "N/A",
+            flag: flag
+        )
         
         // Create the form context
         let formContext = FeatureFlagFormContext(
             title: context.title,
             isAuthenticated: true,
             isAdmin: payload.isAdmin,
-            error: context.error,
-            recoverySuggestion: context.recoverySuggestion,
-            success: context.success,
+            errorMessage: context.errorMessage,
+            recoverySuggestion: nil,
+            successMessage: context.successMessage,
             flag: flag
         )
         
@@ -171,16 +200,34 @@ struct DashboardController: RouteCollection {
             _ = try await req.services.featureFlagService.createFlag(create, userId: userId)
             
             // Redirect to the dashboard with a success message
-            var context = ViewContext(title: "Dashboard")
-            context.isAuthenticated = true
-            context.isAdmin = payload.isAdmin
-            context.success = "Feature flag created successfully"
+            var context = ViewContext(
+                title: "Dashboard",
+                isAuthenticated: true,
+                isAdmin: payload.isAdmin,
+                successMessage: "Feature flag created successfully",
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
+            )
             
             return req.redirect(to: "/dashboard")
         } catch {
             // If there's an error, render the form again with the error message
-            var context = ViewContext(title: "Create Feature Flag")
-            context.isAdmin = payload.isAdmin
+            var context = ViewContext(
+                title: "Create Feature Flag",
+                isAuthenticated: true,
+                isAdmin: payload.isAdmin,
+                errorMessage: error.localizedDescription,
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
+            )
             
             // Create a feature flag from the form data
             let flag = FeatureFlag(
@@ -195,9 +242,9 @@ struct DashboardController: RouteCollection {
                 title: context.title,
                 isAuthenticated: true,
                 isAdmin: payload.isAdmin,
-                error: error.localizedDescription,
-                recoverySuggestion: context.recoverySuggestion,
-                success: context.success,
+                errorMessage: context.errorMessage,
+                recoverySuggestion: nil,
+                successMessage: context.successMessage,
                 flag: flag
             )
             
@@ -228,16 +275,34 @@ struct DashboardController: RouteCollection {
             _ = try await req.services.featureFlagService.updateFlag(id: id, update, userId: userId)
             
             // Redirect to the dashboard with a success message
-            var context = ViewContext(title: "Dashboard")
-            context.isAuthenticated = true
-            context.isAdmin = payload.isAdmin
-            context.success = "Feature flag updated successfully"
+            var context = ViewContext(
+                title: "Dashboard",
+                isAuthenticated: true,
+                isAdmin: payload.isAdmin,
+                successMessage: "Feature flag updated successfully",
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
+            )
             
             return req.redirect(to: "/dashboard")
         } catch {
             // If there's an error, render the form again with the error message
-            var context = ViewContext(title: "Edit Feature Flag")
-            context.isAdmin = payload.isAdmin
+            var context = ViewContext(
+                title: "Edit Feature Flag",
+                isAuthenticated: true,
+                isAdmin: payload.isAdmin,
+                errorMessage: error.localizedDescription,
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
+            )
             
             // Create a feature flag from the form data
             let flag = FeatureFlag(
@@ -253,9 +318,9 @@ struct DashboardController: RouteCollection {
                 title: context.title,
                 isAuthenticated: true,
                 isAdmin: payload.isAdmin,
-                error: error.localizedDescription,
-                recoverySuggestion: context.recoverySuggestion,
-                success: context.success,
+                errorMessage: context.errorMessage,
+                recoverySuggestion: nil,
+                successMessage: context.successMessage,
                 flag: flag
             )
             
@@ -281,10 +346,18 @@ struct DashboardController: RouteCollection {
         try await req.services.featureFlagService.deleteFlag(id: id, userId: userId)
         
         // Redirect to the dashboard with a success message
-        var context = ViewContext(title: "Dashboard")
-        context.isAuthenticated = true
-        context.isAdmin = payload.isAdmin
-        context.success = "Feature flag deleted successfully"
+        var context = ViewContext(
+            title: "Dashboard",
+            isAuthenticated: true,
+            isAdmin: payload.isAdmin,
+            successMessage: "Feature flag deleted successfully",
+            environment: "development",
+            uptime: "N/A",
+            databaseConnected: true,
+            redisConnected: true,
+            memoryUsage: "N/A",
+            lastDeployment: "N/A"
+        )
         
         return req.redirect(to: "/dashboard")
     }

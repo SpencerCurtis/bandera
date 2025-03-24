@@ -154,4 +154,10 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
     func deleteOverride(_ override: UserFeatureFlag) async throws {
         try await override.delete(on: database)
     }
+    
+    func getAllForOrganization(organizationId: UUID) async throws -> [FeatureFlag] {
+        return try await FeatureFlag.query(on: database)
+            .filter(\.$organizationId == organizationId)
+            .all()
+    }
 }

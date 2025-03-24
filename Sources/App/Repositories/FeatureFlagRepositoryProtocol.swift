@@ -64,4 +64,9 @@ protocol FeatureFlagRepositoryProtocol {
     
     /// Delete a UserFeatureFlag
     func deleteOverride(_ override: UserFeatureFlag) async throws
+    
+    /// Get all feature flags for an organization
+    /// - Parameter organizationId: The unique identifier of the organization
+    /// - Returns: All feature flags for the organization
+    func getAllForOrganization(organizationId: UUID) async throws -> [FeatureFlag]
 } 

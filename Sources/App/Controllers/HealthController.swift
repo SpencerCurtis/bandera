@@ -97,28 +97,4 @@ struct HealthStatus: Content {
     let redisConnected: Bool
     let memoryUsage: String
     let lastDeployment: String
-}
-
-// MARK: - View Context Extension
-
-extension ViewContext {
-    init(title: String,
-         isAuthenticated: Bool,
-         isAdmin: Bool,
-         environment: String,
-         uptime: String,
-         databaseConnected: Bool,
-         redisConnected: Bool,
-         memoryUsage: String,
-         lastDeployment: String) {
-        self.init(title: title,
-                 isAuthenticated: isAuthenticated,
-                 isAdmin: isAdmin)
-        self.environment = environment
-        self.uptime = uptime
-        self.databaseConnected = databaseConnected
-        self.redisConnected = redisConnected
-        self.memoryUsage = memoryUsage
-        self.lastDeployment = lastDeployment
-    }
 } 
