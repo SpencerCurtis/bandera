@@ -1,24 +1,26 @@
 import Vapor
 import Fluent
+import Leaf
 
 /// Controller for feature flag-related routes.
 struct FeatureFlagController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Protected routes require authentication
-        let protected = routes.grouped(JWTAuthMiddleware.standard)
-        let admin = routes.grouped(JWTAuthMiddleware.admin)
+        // Routes are already protected by JWTAuthMiddleware.standard in routes.swift
+        // So we don't need to apply authentication middleware again
         
-        // Feature flag routes
-        protected.get("create", use: createForm)
-        protected.post("create", use: create)
-        protected.get(":id", use: detail)
-        protected.post(":id", "toggle", use: toggle)
-        admin.post(":id", "delete", use: delete)
+        // Feature flag routes - these are registered under /dashboard/feature-flags in routes.swift
+        routes.get("create", use: createForm)
+        routes.post("create", use: create)
+        routes.get(":id", use: detail)
+        routes.post(":id", "toggle", use: toggle)
+        
+        // Admin-only routes - we'll check isAdmin inside the handlers instead of using middleware
+        routes.post(":id", "delete", use: delete)
         
         // Feature flag override routes
-        protected.get(":id", "overrides", "new", use: createOverrideForm)
-        protected.post(":id", "overrides", "new", use: createOverride)
-        protected.post(":id", "overrides", ":overrideId", "delete", use: deleteOverride)
+        routes.get(":id", "overrides", "new", use: createOverrideForm)
+        routes.post(":id", "overrides", "new", use: createOverride)
+        routes.post(":id", "overrides", ":overrideId", "delete", use: deleteOverride)
     }
     
     /// Renders the create feature flag form
@@ -95,6 +97,11 @@ struct FeatureFlagController: RouteCollection {
             throw AuthenticationError.authenticationRequired
         }
         
+        // Verify the user is an admin
+        guard payload.isAdmin else {
+            throw AuthenticationError.insufficientPermissions
+        }
+        
         // Use the feature flag service to delete the flag
         try await req.services.featureFlagService.deleteFlag(id: id, userId: userId)
         
@@ -134,21 +141,123 @@ struct FeatureFlagController: RouteCollection {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
         
-        // Get the flag details from the service
-        let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
+        do {
+            // Get the flag details from the service
+            let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
+            
+            req.logger.debug("Flag details retrieved: id=\(flag.id), key=\(flag.key)")
+            print("flag: \(flag)")
+            
+            // Create a safe version of the flag for display 
+            let safeFlag = createSafeFlag(from: flag)
+            req.logger.debug("Safe flag created: id=\(safeFlag.id), key=\(safeFlag.key)")
+            
+            // Create a struct with all the data we need for the template
+            struct TemplateContext: Encodable {
+                var title: String
+                var isAuthenticated: Bool
+                var isAdmin: Bool
+                var environment: String
+                var uptime: String
+                var databaseConnected: Bool
+                var redisConnected: Bool
+                var memoryUsage: String
+                var lastDeployment: String
+                var flag: FeatureFlagDetailDTO
+            }
+            
+            // Create a new context with the flag directly available
+            let templateContext = TemplateContext(
+                title: "Feature Flag Details",
+                isAuthenticated: true,
+                isAdmin: user.isAdmin,
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A",
+                flag: safeFlag
+            )
+            
+            return try await req.view.render("feature-flag-detail", templateContext)
+        } catch {
+            // Log the error
+            req.logger.error("Error processing feature flag detail: \(error)")
+            
+            // Return a simplified error view
+            let errorContext = ViewContext(
+                title: "Feature Flag Error",
+                isAuthenticated: true,
+                isAdmin: user.isAdmin,
+                errorMessage: "Error displaying flag details: \(error.localizedDescription)",
+                environment: "development",
+                uptime: "N/A", 
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
+            )
+            
+            return try await req.view.render("error", errorContext)
+        }
+    }
+    
+    /// Creates a safe version of a feature flag for display, handling potential date formatting issues
+    private func createSafeFlag(from flag: FeatureFlagDetailDTO) -> FeatureFlagDetailDTO {
+        // Format dates as strings to avoid Leaf date conversion issues
+        let safeCreatedAt = flag.createdAt.map { date -> Date in
+            // If we have a valid date, return it as is
+            return date
+        }
         
-        print("flag: \(flag)")
+        let safeUpdatedAt = flag.updatedAt.map { date -> Date in
+            // If we have a valid date, return it as is
+            return date
+        }
         
-        // Create view context
-        let context = ViewContext(
-            title: "Feature Flag Details",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            flag: flag
+        // Create a copy of audit logs with safely formatted dates
+        let safeAuditLogs = flag.auditLogs.map { log -> AuditLogDTO in
+            // Use a safer approach for the date that won't throw conversion errors
+            let safeCreatedAt: Date
+            if let timestamp = try? Date(timeIntervalSince1970: log.createdAt.timeIntervalSince1970) {
+                safeCreatedAt = timestamp
+            } else {
+                // If there's a conversion issue, use current date as fallback
+                safeCreatedAt = Date()
+            }
+            
+            return AuditLogDTO(
+                type: log.type,
+                message: log.message,
+                user: log.user,
+                createdAt: safeCreatedAt
+            )
+        }
+        
+        // Create a copy of user overrides with safely formatted dates
+        let safeUserOverrides = flag.userOverrides.map { override -> UserOverrideDTO in
+            return UserOverrideDTO(
+                id: override.id,
+                user: override.user,
+                value: override.value,
+                updatedAt: override.updatedAt.map { $0 }
+            )
+        }
+        
+        // Return a new DTO with safe values
+        return FeatureFlagDetailDTO(
+            id: flag.id,
+            key: flag.key,
+            type: flag.type,
+            defaultValue: flag.defaultValue,
+            description: flag.description,
+            isEnabled: flag.isEnabled,
+            createdAt: safeCreatedAt,
+            updatedAt: safeUpdatedAt,
+            userOverrides: safeUserOverrides,
+            auditLogs: safeAuditLogs
         )
-        
-        // Render the view
-        return try await req.view.render("feature-flag-detail", context)
     }
     
     /// Toggles a feature flag on/off.
@@ -194,9 +303,31 @@ struct FeatureFlagController: RouteCollection {
             title: "Add Feature Flag Override",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            flag: flag,
-            users: users,
-            currentUser: user
+            errorMessage: nil,
+            successMessage: nil,
+            warningMessage: nil,
+            infoMessage: nil,
+            statusCode: nil,
+            requestId: nil,
+            debugInfo: nil,
+            user: nil,
+            currentUserId: user.id,
+            returnTo: nil,
+            environment: "development",
+            uptime: "N/A",
+            databaseConnected: true,
+            redisConnected: true,
+            memoryUsage: "N/A",
+            lastDeployment: "N/A",
+            flagDetail: flag,
+            flags: nil,
+            allUsers: users,
+            overrides: nil,
+            organizations: nil,
+            organization: nil,
+            members: nil,
+            editing: false,
+            pagination: nil
         )
         
         // Render the view

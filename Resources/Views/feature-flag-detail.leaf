@@ -1,4 +1,5 @@
 #extend("layout"):
+    #export("title", "Feature Flag Details")
     #export("content"):
         <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
             <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
@@ -54,11 +55,23 @@
                     </div>
                     <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
                         <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#date(flag.createdAt, "yyyy-MM-dd HH:mm:ss")</dd>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
+                            #if(flag.createdAt):
+                                #date(flag.createdAt, "yyyy-MM-dd HH:mm:ss")
+                            #else:
+                                N/A
+                            #endif
+                        </dd>
                     </div>
                     <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                         <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#date(flag.updatedAt, "yyyy-MM-dd HH:mm:ss")</dd>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
+                            #if(flag.updatedAt):
+                                #date(flag.updatedAt, "yyyy-MM-dd HH:mm:ss")
+                            #else:
+                                N/A
+                            #endif
+                        </dd>
                     </div>
                 </dl>
             </div>
@@ -66,7 +79,7 @@
             <!-- User Overrides Section -->
             <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
                 <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">User Overrides</h4>
-                #if(count(flag.userOverrides) > 0):
+                #if(flag.userOverrides):
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-900">
@@ -82,7 +95,13 @@
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.user.email)</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.value)</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#date(override.updatedAt, "yyyy-MM-dd HH:mm:ss")</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                                            #if(override.updatedAt):
+                                                #date(override.updatedAt, "yyyy-MM-dd HH:mm:ss")
+                                            #else:
+                                                N/A
+                                            #endif
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <form method="POST" action="/dashboard/feature-flags/#(flag.id)/overrides/#(override.id)/delete" class="inline">
                                                 <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Remove</button>
@@ -107,7 +126,7 @@
             <!-- Audit Log Section -->
             <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
                 <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Audit Log</h4>
-                #if(count(flag.auditLogs) > 0):
+                #if(flag.auditLogs):
                     <div class="flow-root">
                         <ul class="-mb-8">
                             #for(log in flag.auditLogs):
@@ -127,7 +146,11 @@
                                                     <p class="text-sm text-gray-500 dark:text-gray-400">#(log.message) by <span class="font-medium text-gray-900 dark:text-gray-300">#(log.user.email)</span></p>
                                                 </div>
                                                 <div class="text-right text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
-                                                    #date(log.createdAt, "yyyy-MM-dd HH:mm:ss")
+                                                    #if(log.createdAt):
+                                                        #date(log.createdAt, "yyyy-MM-dd HH:mm:ss")
+                                                    #else:
+                                                        N/A
+                                                    #endif
                                                 </div>
                                             </div>
                                         </div>
