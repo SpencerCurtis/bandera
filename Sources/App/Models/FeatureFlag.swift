@@ -31,6 +31,9 @@ final class FeatureFlag: Model, Content {
     @Field(key: "user_id")
     var userId: UUID?
     
+    @Field(key: "organization_id")
+    var organizationId: UUID?
+    
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
     
@@ -44,26 +47,29 @@ final class FeatureFlag: Model, Content {
          type: FeatureFlagType,
          defaultValue: String,
          description: String? = nil,
-         userId: UUID? = nil) {
+         userId: UUID? = nil,
+         organizationId: UUID? = nil) {
         self.id = id
         self.key = key
         self.type = type
         self.defaultValue = defaultValue
         self.description = description
         self.userId = userId
+        self.organizationId = organizationId
     }
 }
 
 // MARK: - Helper Methods
 extension FeatureFlag {
     /// Create a feature flag from a DTO
-    static func create(from dto: CreateFeatureFlagRequest, userId: UUID) -> FeatureFlag {
+    static func create(from dto: CreateFeatureFlagRequest, userId: UUID, organizationId: UUID? = nil) -> FeatureFlag {
         FeatureFlag(
             key: dto.key,
             type: dto.type,
             defaultValue: dto.defaultValue,
             description: dto.description,
-            userId: userId
+            userId: userId,
+            organizationId: organizationId
         )
     }
     
@@ -101,6 +107,31 @@ extension FeatureFlag {
                 flag: flag,
                 value: override?.value,
                 isOverridden: override != nil
+            )
+        }
+        
+        return FeatureFlagsContainer(flags: response)
+    }
+    
+    /// Get all feature flags for an organization with their overrides
+    static func getOrganizationFlags(organizationId: String, on db: Database) async throws -> FeatureFlagsContainer {
+        guard let uuid = UUID(uuidString: organizationId) else {
+            throw ValidationError.failed("Invalid organization ID")
+        }
+        
+        // Get all feature flags for this organization
+        let flags = try await FeatureFlag.query(on: db)
+            .filter(\FeatureFlag.$organizationId, .equal, uuid)
+            .all()
+            
+        // Create response dictionary
+        var response: [String: FeatureFlagResponse] = [:]
+        
+        for flag in flags {
+            response[flag.key] = .init(
+                flag: flag,
+                value: nil,
+                isOverridden: false
             )
         }
         

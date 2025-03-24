@@ -13,12 +13,18 @@ private struct TestDatabaseKey: StorageKey {
 
 /// Configures the Vapor application.
 public func configure(_ app: Application) async throws {
+    // Set log level to debug to see our detailed logs
+    app.logger.logLevel = .debug
+    
     // MARK: - Middleware Configuration
     
-    // Configure JWT
-    let jwtKey = Environment.get("JWT_SECRET") ?? "bandera-development-key"
+    // Configure JWT with a safe key 
+    let jwtKey = "banderadevelopmentkey123456789"
+    
+    // Use the key directly
     app.jwt.signers.use(.hs256(key: jwtKey))
-    app.logger.debug("Configured JWT with key: \(jwtKey.prefix(10))...")
+    
+    app.logger.notice("Configured JWT with key: \(jwtKey.prefix(10))...")
     
     // Configure middleware
     app.middleware = .init()
@@ -59,6 +65,18 @@ public func configure(_ app: Application) async throws {
         }
     }
     
+    // MARK: - Development Tools
+    
+    // Register development commands and routes
+    if app.environment == .development || app.environment == .testing {
+        // Register development commands
+        app.commands.use(ResetAdminPasswordCommand(), as: "reset-admin")
+        app.commands.use(ResetPasswordCommand(), as: "reset-password")
+        
+        // Register development routes
+        DevRoutes.register(to: app)
+    }
+    
     // MARK: - Database Configuration
     
     // Only configure the database if it hasn't been configured for testing
@@ -77,6 +95,11 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(AddUserIdToFeatureFlag())
     app.migrations.add(FlagStatus.Migration())
     app.migrations.add(AuditLog.Migration())
+    
+    // Add organization migrations
+    app.migrations.add(CreateOrganization())
+    app.migrations.add(OrganizationUser.Migration())
+    app.migrations.add(AddOrganizationIdToFeatureFlag())
 
     // Add admin user in non-testing environments
     if app.environment != .testing {
@@ -113,6 +136,9 @@ public func configure(_ app: Application) async throws {
     let featureFlagRepository = FeatureFlagRepository(database: app.db)
     serviceContainer.featureFlagRepository = featureFlagRepository
     
+    let organizationRepository = OrganizationRepository(db: app.db)
+    serviceContainer.organizationRepository = organizationRepository
+    
     // Initialize services that depend on repositories
     let authService = AuthService(userRepository: userRepository, jwtSigner: app.jwt.signers)
     serviceContainer.authService = authService
@@ -120,8 +146,25 @@ public func configure(_ app: Application) async throws {
     let featureFlagService = FeatureFlagService(repository: featureFlagRepository, webSocketService: webSocketService)
     serviceContainer.featureFlagService = featureFlagService
     
+    let organizationService = OrganizationService(
+        organizationRepository: organizationRepository,
+        userRepository: userRepository
+    )
+    serviceContainer.organizationService = organizationService
+    
     // MARK: - Route Registration
     
     // Register routes
     try routes(app)
+
+    // Register controllers
+    // try app.register(collection: TodoController())
+    // try app.register(collection: UserController())
+    try app.register(collection: AuthController())
+    try app.register(collection: DashboardController())
+    try app.register(collection: FeatureFlagController())
+    try app.register(collection: OrganizationController())
+    try app.register(collection: OrganizationWebController())
+    try app.register(collection: HealthController())
+    try app.register(collection: ErrorController())
 }

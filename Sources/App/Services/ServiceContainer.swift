@@ -6,28 +6,36 @@ final class ServiceContainer: @unchecked Sendable {
     var webSocketService: WebSocketServiceProtocol
     var featureFlagRepository: FeatureFlagRepositoryProtocol
     var userRepository: UserRepositoryProtocol
+    var organizationRepository: OrganizationRepositoryProtocol
     var featureFlagService: FeatureFlagServiceProtocol
     var authService: AuthServiceProtocol
+    var organizationService: OrganizationServiceProtocol
     
     /// Initialize with all services and repositories
     /// - Parameters:
     ///   - webSocketService: The WebSocket service
     ///   - featureFlagRepository: The feature flag repository
     ///   - userRepository: The user repository
+    ///   - organizationRepository: The organization repository
     ///   - featureFlagService: The feature flag service
     ///   - authService: The authentication service
+    ///   - organizationService: The organization service
     init(
         webSocketService: WebSocketServiceProtocol,
         featureFlagRepository: FeatureFlagRepositoryProtocol,
         userRepository: UserRepositoryProtocol,
+        organizationRepository: OrganizationRepositoryProtocol,
         featureFlagService: FeatureFlagServiceProtocol,
-        authService: AuthServiceProtocol
+        authService: AuthServiceProtocol,
+        organizationService: OrganizationServiceProtocol
     ) {
         self.webSocketService = webSocketService
         self.featureFlagRepository = featureFlagRepository
         self.userRepository = userRepository
+        self.organizationRepository = organizationRepository
         self.featureFlagService = featureFlagService
         self.authService = authService
+        self.organizationService = organizationService
     }
     
     /// Initialize with the Vapor application
@@ -36,6 +44,7 @@ final class ServiceContainer: @unchecked Sendable {
         // Create repositories
         let featureFlagRepository = FeatureFlagRepository(database: app.db)
         let userRepository = UserRepository(database: app.db)
+        let organizationRepository = OrganizationRepository(db: app.db)
         
         // Create services
         let webSocketService = WebSocketService()
@@ -47,14 +56,20 @@ final class ServiceContainer: @unchecked Sendable {
             userRepository: userRepository,
             jwtSigner: app.jwt.signers
         )
+        let organizationService = OrganizationService(
+            organizationRepository: organizationRepository,
+            userRepository: userRepository
+        )
         
         // Initialize with all services and repositories
         self.init(
             webSocketService: webSocketService,
             featureFlagRepository: featureFlagRepository,
             userRepository: userRepository,
+            organizationRepository: organizationRepository,
             featureFlagService: featureFlagService,
-            authService: authService
+            authService: authService,
+            organizationService: organizationService
         )
     }
 }
@@ -83,15 +98,6 @@ extension Application {
     }
 }
 
-// MARK: - Request Extension
-
-extension Request {
-    /// The request's service container.
-    var services: ServiceContainer {
-        application.services
-    }
-}
-
 // MARK: - Empty Implementations
 
 private struct EmptyWebSocketService: WebSocketServiceProtocol {
@@ -114,6 +120,7 @@ private struct EmptyFeatureFlagRepository: FeatureFlagRepositoryProtocol {
     func getAll() async throws -> [FeatureFlag] { [] }
     func all() async throws -> [FeatureFlag] { [] }
     func getAllForUser(userId: UUID) async throws -> [FeatureFlag] { [] }
+    func getAllForOrganization(organizationId: UUID) async throws -> [FeatureFlag] { [] }
     func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer { 
         FeatureFlagsContainer(flags: [:]) 
     }
@@ -136,6 +143,7 @@ private struct EmptyUserRepository: UserRepositoryProtocol {
     func get(id: UUID) async throws -> User? { nil }
     func getById(_ id: UUID) async throws -> User? { nil }
     func getByEmail(_ email: String) async throws -> User? { nil }
+    func findByEmail(_ email: String) async throws -> User? { nil }
     func delete(_ user: User) async throws {}
     func getAllUsers() async throws -> [User] { [] }
 }
@@ -215,5 +223,49 @@ private struct EmptyAuthService: AuthServiceProtocol {
     func generateToken(for user: User) throws -> String { "" }
     func validateTargetUser(requestedUserId: UUID, authenticatedUserId: UUID) async throws -> UUID { 
         authenticatedUserId 
+    }
+}
+
+private struct EmptyOrganizationService: OrganizationServiceProtocol {
+    func create(_ dto: CreateOrganizationRequest, creatorId: UUID) async throws -> Organization {
+        Organization(name: "")
+    }
+    
+    func get(id: UUID) async throws -> Organization {
+        Organization(name: "")
+    }
+    
+    func update(id: UUID, dto: UpdateOrganizationRequest) async throws -> Organization {
+        Organization(name: "")
+    }
+    
+    func delete(id: UUID) async throws {}
+    
+    func getForUser(userId: UUID) async throws -> [OrganizationWithRoleDTO] {
+        []
+    }
+    
+    func addUser(organizationId: UUID, dto: AddUserToOrganizationRequest, requesterId: UUID) async throws -> OrganizationMembershipDTO {
+        // Need to create a membership object first to initialize from
+        let orgUser = OrganizationUser(organizationId: organizationId, userId: dto.userId, role: dto.role)
+        return OrganizationMembershipDTO(from: orgUser)
+    }
+    
+    func removeUser(organizationId: UUID, userId: UUID, requesterId: UUID) async throws {}
+    
+    func getMembers(organizationId: UUID, requesterId: UUID) async throws -> [OrganizationMemberDTO] {
+        []
+    }
+    
+    func getWithMembers(id: UUID, requesterId: UUID) async throws -> OrganizationWithMembersDTO {
+        OrganizationWithMembersDTO(organization: OrganizationDTO(id: id, name: "", createdAt: Date(), updatedAt: Date()), members: [])
+    }
+    
+    func updateUserRole(to organizationId: UUID, userId: UUID, role: OrganizationRole) async throws -> OrganizationUser {
+        OrganizationUser(organizationId: organizationId, userId: userId, role: role)
+    }
+    
+    func createOrganizationDTO(from organization: Organization) -> OrganizationDTO {
+        OrganizationDTO(id: organization.id ?? UUID(), name: organization.name, createdAt: organization.createdAt, updatedAt: organization.updatedAt)
     }
 }

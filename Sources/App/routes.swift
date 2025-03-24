@@ -46,6 +46,10 @@ func routes(_ app: Application) throws {
     let featureFlagController = FeatureFlagController()
     try featureFlags.register(collection: featureFlagController)
     
+    // Organization routes
+    let organizationController = OrganizationController()
+    try app.register(collection: organizationController)
+    
     // WebSocket routes
     let webSocketController = WebSocketController()
     try app.register(collection: webSocketController)
