@@ -1,16 +1,26 @@
 import Fluent
 import Vapor
 
+/// Migration that creates the admin user
 struct CreateAdminUser: AsyncMigration {
+    /// Prepare creates the admin user
     func prepare(on database: Database) async throws {
-        let adminUser = User(
+        // Generate a password hash for "admin"
+        let passwordHash = try Bcrypt.hash("password")
+        
+        // Create the admin user
+        let user = User(
+            id: nil,
             email: "admin@example.com",
-            passwordHash: try Bcrypt.hash("admin123"),
+            passwordHash: passwordHash,
             isAdmin: true
         )
-        try await adminUser.save(on: database)
+        
+        // Save the user to the database
+        try await user.save(on: database)
     }
-
+    
+    /// Revert removes the admin user
     func revert(on database: Database) async throws {
         try await User.query(on: database)
             .filter(\.$email == "admin@example.com")
