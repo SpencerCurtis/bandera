@@ -40,6 +40,38 @@ extension BanderaErrorProtocol {
     }
 }
 
+// MARK: - Not Found Errors
+
+/// Errors for specific resources that weren't found
+enum NotFoundError: BanderaErrorProtocol {
+    case user(UUID)
+    case featureFlag(UUID)
+    case organization(UUID)
+    
+    var status: HTTPStatus {
+        return .notFound
+    }
+    
+    var reason: String {
+        switch self {
+        case .user(let id):
+            return "User with ID \(id) not found"
+        case .featureFlag(let id):
+            return "Feature flag with ID \(id) not found"
+        case .organization(let id):
+            return "Organization with ID \(id) not found"
+        }
+    }
+    
+    var recoverySuggestion: String? {
+        return "Please check the identifier and try again."
+    }
+    
+    var domain: ErrorDomain {
+        return .resource
+    }
+}
+
 // MARK: - Authentication Errors
 
 /// Errors related to authentication and authorization
@@ -47,6 +79,7 @@ enum AuthenticationError: BanderaErrorProtocol {
     case invalidCredentials
     case authenticationRequired
     case insufficientPermissions
+    case notAuthorized(reason: String)
     
     var status: HTTPStatus {
         switch self {
@@ -54,7 +87,7 @@ enum AuthenticationError: BanderaErrorProtocol {
             return .unauthorized
         case .authenticationRequired:
             return .unauthorized
-        case .insufficientPermissions:
+        case .insufficientPermissions, .notAuthorized:
             return .forbidden
         }
     }
@@ -67,26 +100,24 @@ enum AuthenticationError: BanderaErrorProtocol {
             return "Authentication required"
         case .insufficientPermissions:
             return "Insufficient permissions"
+        case .notAuthorized(let reason):
+            return reason
         }
     }
     
-    var suggestion: String? {
+    var recoverySuggestion: String? {
         switch self {
         case .invalidCredentials:
             return "Please check your email and password and try again"
         case .authenticationRequired:
             return "Please log in to access this resource"
-        case .insufficientPermissions:
+        case .insufficientPermissions, .notAuthorized:
             return "Please contact an administrator if you need access to this resource"
         }
     }
     
     var domain: ErrorDomain {
         return .authentication
-    }
-    
-    var headers: HTTPHeaders {
-        return [:]
     }
 }
 

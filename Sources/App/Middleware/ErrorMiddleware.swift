@@ -197,14 +197,12 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
             // Create view context
             var context = ViewContext.error(
                 status: response.status.code,
-                reason: reason,
-                suggestion: suggestion,
-                requestId: requestId
+                reason: reason
             )
             
             // Add debug info in development
             if environment == .development {
-                context.debugInfo = String(describing: error)
+                context.debugInfo = ["error": String(describing: error)]
             }
             
             // Render the error page

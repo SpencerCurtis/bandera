@@ -18,7 +18,13 @@ struct ErrorController: RouteCollection {
             title: "Error",
             isAuthenticated: req.auth.get(UserJWTPayload.self) != nil,
             isAdmin: req.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
-            error: message
+            errorMessage: message,
+            environment: "development",
+            uptime: "N/A",
+            databaseConnected: true,
+            redisConnected: true,
+            memoryUsage: "N/A",
+            lastDeployment: "N/A"
         )
         
         return try await req.view.render("error", context)
