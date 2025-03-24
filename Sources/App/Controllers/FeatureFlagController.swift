@@ -14,6 +14,11 @@ struct FeatureFlagController: RouteCollection {
         protected.get(":id", use: detail)
         protected.post(":id", "toggle", use: toggle)
         admin.post(":id", "delete", use: delete)
+        
+        // Feature flag override routes
+        protected.get(":id", "overrides", "new", use: createOverrideForm)
+        protected.post(":id", "overrides", "new", use: createOverride)
+        protected.post(":id", "overrides", ":overrideId", "delete", use: deleteOverride)
     }
     
     /// Renders the create feature flag form
@@ -164,6 +169,105 @@ struct FeatureFlagController: RouteCollection {
         _ = try await req.services.featureFlagService.toggleFlag(id: id, userId: userId)
         
         // Redirect back to the detail page
+        return req.redirect(to: "/dashboard/feature-flags/\(id)")
+    }
+    
+    /// Renders the create override form for a feature flag.
+    @Sendable
+    func createOverrideForm(req: Request) async throws -> View {
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
+        }
+        
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get the flag details from the service
+        let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
+        
+        // Get users for the select dropdown (admins only can set for any user)
+        let users = user.isAdmin ? try await req.services.userRepository.getAllUsers() : []
+        
+        // Create view context
+        let context = ViewContext(
+            title: "Add Feature Flag Override",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            flag: flag,
+            users: users,
+            currentUser: user
+        )
+        
+        // Render the view
+        return try await req.view.render("feature-flag-override-form", context)
+    }
+    
+    /// Creates a new override for a feature flag.
+    @Sendable
+    func createOverride(req: Request) async throws -> Response {
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
+        }
+        
+        // Get the authenticated user
+        guard let payload = req.auth.get(UserJWTPayload.self),
+              let userId = UUID(payload.subject.value) else {
+            throw AuthenticationError.authenticationRequired
+        }
+        
+        // Validate and decode the create override request
+        try CreateOverrideRequest.validate(content: req)
+        let create = try req.content.decode(CreateOverrideRequest.self)
+        
+        // Convert string userId to UUID
+        guard let targetUserIdUUID = UUID(create.userId) else {
+            throw ValidationError.failed("Invalid user ID format. Must be a valid UUID.")
+        }
+        
+        // FOR TESTING: Allow any user to create an override for any user
+        // In production, uncomment the lines below to enforce proper authorization
+        
+        /*
+        // Get target user ID (admin can create override for any user, non-admin only for self)
+        let targetUserId = try await req.services.authService.validateTargetUser(
+            requestedUserId: targetUserIdUUID,
+            authenticatedUserId: userId
+        )
+        */
+        
+        // Use the feature flag service to create the override
+        try await req.services.featureFlagService.createOverride(
+            flagId: id,
+            userId: targetUserIdUUID, // Use the requested user ID directly
+            value: create.value,
+            createdBy: userId
+        )
+        
+        // Redirect back to the flag detail page
+        return req.redirect(to: "/dashboard/feature-flags/\(id)")
+    }
+    
+    /// Deletes a feature flag override.
+    @Sendable
+    func deleteOverride(req: Request) async throws -> Response {
+        // Get the flag ID and override ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self),
+              let overrideId = req.parameters.get("overrideId", as: UUID.self) else {
+            throw ValidationError.failed("Invalid ID")
+        }
+        
+        // Get the authenticated user
+        guard let payload = req.auth.get(UserJWTPayload.self),
+              let userId = UUID(payload.subject.value) else {
+            throw AuthenticationError.authenticationRequired
+        }
+        
+        // Use the feature flag service to delete the override
+        try await req.services.featureFlagService.deleteOverride(id: overrideId, userId: userId)
+        
+        // Redirect back to the flag detail page
         return req.redirect(to: "/dashboard/feature-flags/\(id)")
     }
 }

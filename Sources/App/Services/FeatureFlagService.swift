@@ -236,6 +236,90 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             return flag
         }
     }
+    
+    /// Create a feature flag override for a user
+    /// - Parameters:
+    ///   - flagId: The unique identifier of the feature flag
+    ///   - userId: The unique identifier of the user to create the override for
+    ///   - value: The override value
+    ///   - createdBy: The unique identifier of the user creating the override
+    func createOverride(flagId: UUID, userId: UUID, value: String, createdBy: UUID) async throws {
+        try await withErrorHandling {
+            // Verify the flag exists and the creator has access to it
+            let flag = try await getFlag(id: flagId, userId: createdBy)
+            
+            // Create or update the override
+            let override = UserFeatureFlag(
+                featureFlagId: flagId,
+                userId: userId,
+                value: value
+            )
+            
+            // Save the override using the repository
+            try await repository.saveOverride(override)
+            
+            // Try to find the user to get their email for the audit log
+            let auditMessage: String
+            if let targetUser = try? await repository.database.query(User.self)
+                                        .filter(\User.$id == userId)
+                                        .first() {
+                // If we found the user, include their email in the message
+                auditMessage = "Created override for user \(targetUser.email)"
+            } else {
+                // If we couldn't find the user, just use the UUID
+                auditMessage = "Created override for user \(userId)"
+            }
+            
+            // Create audit log with user-friendly message
+            try await repository.createAuditLog(
+                type: "override_created",
+                message: auditMessage,
+                flagId: flagId,
+                userId: createdBy
+            )
+            
+            // Broadcast the event
+            try await broadcastEvent(FeatureFlagEventType.overrideCreated, flag: flag)
+        }
+    }
+    
+    /// Delete a feature flag override
+    /// - Parameters:
+    ///   - id: The unique identifier of the override
+    ///   - userId: The unique identifier of the user deleting the override
+    func deleteOverride(id: UUID, userId: UUID) async throws {
+        try await withErrorHandling {
+            // Find the override using the repository
+            guard let override = try await repository.findOverride(id: id) else {
+                throw ResourceError.notFound("Override with ID \(id)")
+            }
+            
+            // Get the flag ID (without try since this property access is not throwing)
+            let flagId = override.$featureFlag.id
+            
+            // Verify the user has access to the flag
+            _ = try await getFlag(id: flagId, userId: userId)
+            
+            // Delete the override
+            try await repository.deleteOverride(override)
+            
+            // Create audit log
+            try await repository.createAuditLog(
+                type: "override_deleted",
+                message: "Override deleted",
+                flagId: flagId,
+                userId: userId
+            )
+            
+            // Get the flag
+            guard let flag = try await repository.get(id: flagId) else {
+                return
+            }
+            
+            // Broadcast the event
+            try await broadcastEvent(FeatureFlagEventType.overrideDeleted, flag: flag)
+        }
+    }
 }
 
 // MARK: - Error Handling

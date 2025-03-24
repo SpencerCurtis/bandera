@@ -85,4 +85,30 @@ struct AuthService: AuthServiceProtocol {
         // Sign payload
         return try jwtSigner.sign(payload)
     }
+    
+    /// Validate that a user has permission to act on behalf of a target user
+    /// - Parameters:
+    ///   - requestedUserId: The ID of the user to act on behalf of
+    ///   - authenticatedUserId: The ID of the authenticated user
+    /// - Returns: The validated target user ID
+    /// - Throws: AuthenticationError.insufficientPermissions if the user doesn't have permission
+    func validateTargetUser(requestedUserId: UUID, authenticatedUserId: UUID) async throws -> UUID {
+        // Get the authenticated user
+        guard let user = try await userRepository.getById(authenticatedUserId) else {
+            throw AuthenticationError.authenticationRequired
+        }
+        
+        // Admins can act on behalf of any user
+        if user.isAdmin {
+            return requestedUserId
+        }
+        
+        // Non-admins can only act on their own behalf
+        if requestedUserId == authenticatedUserId {
+            return authenticatedUserId
+        }
+        
+        // Otherwise, insufficient permissions
+        throw AuthenticationError.insufficientPermissions
+    }
 } 

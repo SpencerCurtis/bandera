@@ -59,6 +59,12 @@ struct ViewContext: Content {
     /// Optional list of feature flags
     var flags: [FeatureFlag]?
     
+    /// Optional list of users for the override form
+    var users: [User]?
+    
+    /// Current authenticated user
+    var currentUser: User?
+    
     /// Create a context for an error page
     static func error(
         status: UInt,
@@ -83,7 +89,9 @@ struct ViewContext: Content {
         success: String? = nil,
         warning: String? = nil,
         flag: FeatureFlagDetailDTO? = nil,
-        flags: [FeatureFlag]? = nil
+        flags: [FeatureFlag]? = nil,
+        users: [User]? = nil,
+        currentUser: User? = nil
     ) {
         self.title = title
         self.isAuthenticated = isAuthenticated
@@ -94,5 +102,7 @@ struct ViewContext: Content {
         self.warning = warning
         self.flag = flag
         self.flags = flags
+        self.users = users
+        self.currentUser = currentUser
     }
 }

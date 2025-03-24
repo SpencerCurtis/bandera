@@ -58,4 +58,18 @@ protocol FeatureFlagServiceProtocol {
     ///   - id: The unique identifier of the deleted feature flag
     ///   - userId: The unique identifier of the user who deleted the flag
     func broadcastDeleteEvent(id: UUID, userId: UUID) async throws
+    
+    /// Create a feature flag override for a user
+    /// - Parameters:
+    ///   - flagId: The unique identifier of the feature flag
+    ///   - userId: The unique identifier of the user to create the override for
+    ///   - value: The override value
+    ///   - createdBy: The unique identifier of the user creating the override
+    func createOverride(flagId: UUID, userId: UUID, value: String, createdBy: UUID) async throws
+    
+    /// Delete a feature flag override
+    /// - Parameters:
+    ///   - id: The unique identifier of the override
+    ///   - userId: The unique identifier of the user deleting the override
+    func deleteOverride(id: UUID, userId: UUID) async throws
 } 

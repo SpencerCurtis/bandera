@@ -17,4 +17,12 @@ protocol AuthServiceProtocol {
     /// - Parameter user: The user to generate a token for
     /// - Returns: The generated JWT token
     func generateToken(for user: User) throws -> String
+    
+    /// Validate that a user has permission to act on behalf of a target user
+    /// - Parameters:
+    ///   - requestedUserId: The ID of the user to act on behalf of
+    ///   - authenticatedUserId: The ID of the authenticated user
+    /// - Returns: The validated target user ID
+    /// - Throws: AuthenticationError.insufficientPermissions if the user doesn't have permission
+    func validateTargetUser(requestedUserId: UUID, authenticatedUserId: UUID) async throws -> UUID
 } 

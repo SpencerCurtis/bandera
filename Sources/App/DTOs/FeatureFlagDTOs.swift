@@ -32,6 +32,18 @@ struct UpdateFeatureFlagRequest: Content, Validatable {
     }
 }
 
+/// DTO for creating a feature flag override.
+struct CreateOverrideRequest: Content, Validatable {
+    let userId: String
+    let value: String
+    
+    /// Validation rules for creating a feature flag override.
+    static func validations(_ validations: inout Validations) {
+        validations.add("userId", as: String.self, is: !.empty)
+        validations.add("value", as: String.self, is: !.empty)
+    }
+}
+
 // MARK: - Response DTOs
 
 /// DTO for feature flag response.

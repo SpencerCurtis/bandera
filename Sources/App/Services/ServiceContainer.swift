@@ -1,4 +1,5 @@
 import Vapor
+import Fluent
 
 /// Container for all services and repositories in the application.
 final class ServiceContainer: @unchecked Sendable {
@@ -104,6 +105,9 @@ private struct EmptyWebSocketService: WebSocketServiceProtocol {
 }
 
 private struct EmptyFeatureFlagRepository: FeatureFlagRepositoryProtocol {
+    var database: Database {
+        fatalError("EmptyFeatureFlagRepository does not have a database")
+    }
     func create(_ flag: FeatureFlag) async throws -> FeatureFlag { flag }
     func update(_ flag: FeatureFlag) async throws -> FeatureFlag { flag }
     func get(id: UUID) async throws -> FeatureFlag? { nil }
@@ -121,14 +125,19 @@ private struct EmptyFeatureFlagRepository: FeatureFlagRepositoryProtocol {
     func isEnabled(id: UUID) async throws -> Bool { false }
     func setEnabled(id: UUID, enabled: Bool) async throws {}
     func createAuditLog(type: String, message: String, flagId: UUID, userId: UUID) async throws {}
+    func saveOverride(_ override: UserFeatureFlag) async throws {}
+    func findOverride(id: UUID) async throws -> UserFeatureFlag? { nil }
+    func deleteOverride(_ override: UserFeatureFlag) async throws {}
 }
 
 private struct EmptyUserRepository: UserRepositoryProtocol {
     func save(_ user: User) async throws {}
     func exists(email: String) async throws -> Bool { false }
     func get(id: UUID) async throws -> User? { nil }
+    func getById(_ id: UUID) async throws -> User? { nil }
     func getByEmail(_ email: String) async throws -> User? { nil }
     func delete(_ user: User) async throws {}
+    func getAllUsers() async throws -> [User] { [] }
 }
 
 private struct EmptyFeatureFlagService: FeatureFlagServiceProtocol {
@@ -192,6 +201,8 @@ private struct EmptyFeatureFlagService: FeatureFlagServiceProtocol {
     }
     func broadcastEvent(_ event: FeatureFlagEventType, flag: FeatureFlag) async throws {}
     func broadcastDeleteEvent(id: UUID, userId: UUID) async throws {}
+    func createOverride(flagId: UUID, userId: UUID, value: String, createdBy: UUID) async throws {}
+    func deleteOverride(id: UUID, userId: UUID) async throws {}
 }
 
 private struct EmptyAuthService: AuthServiceProtocol {
@@ -202,4 +213,7 @@ private struct EmptyAuthService: AuthServiceProtocol {
         AuthResponse(token: "", user: UserResponse(user: User(email: "", passwordHash: "", isAdmin: false)))
     }
     func generateToken(for user: User) throws -> String { "" }
+    func validateTargetUser(requestedUserId: UUID, authenticatedUserId: UUID) async throws -> UUID { 
+        authenticatedUserId 
+    }
 }

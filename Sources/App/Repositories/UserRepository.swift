@@ -21,6 +21,14 @@ struct UserRepository: UserRepositoryProtocol {
         try await User.find(id, on: database)
     }
     
+    /// Alias for get(id:) - for better readability
+    /// - Parameters:
+    ///   - id: The unique identifier of the user  
+    /// - Returns: The user if found, nil otherwise
+    func getById(_ id: UUID) async throws -> User? {
+        try await get(id: id)
+    }
+    
     /// Get a user by email
     /// - Parameter email: The email of the user
     /// - Returns: The user if found, nil otherwise
@@ -49,5 +57,11 @@ struct UserRepository: UserRepositoryProtocol {
     /// - Parameter user: The user to delete
     func delete(_ user: User) async throws {
         try await user.delete(on: database)
+    }
+    
+    /// Get all users
+    /// - Returns: All users in the system
+    func getAllUsers() async throws -> [User] {
+        try await User.query(on: database).all()
     }
 } 

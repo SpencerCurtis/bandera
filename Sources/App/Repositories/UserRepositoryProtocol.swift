@@ -9,6 +9,12 @@ protocol UserRepositoryProtocol {
     /// - Returns: The user if found, nil otherwise
     func get(id: UUID) async throws -> User?
     
+    /// Alias for get(id:) - for better readability
+    /// - Parameters:
+    ///   - id: The unique identifier of the user  
+    /// - Returns: The user if found, nil otherwise
+    func getById(_ id: UUID) async throws -> User?
+    
     /// Get a user by email
     /// - Parameter email: The email of the user
     /// - Returns: The user if found, nil otherwise
@@ -26,4 +32,8 @@ protocol UserRepositoryProtocol {
     /// Delete a user
     /// - Parameter user: The user to delete
     func delete(_ user: User) async throws
+    
+    /// Get all users
+    /// - Returns: All users in the system
+    func getAllUsers() async throws -> [User]
 } 

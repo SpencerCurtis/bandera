@@ -3,6 +3,9 @@ import Fluent
 
 /// Protocol defining the interface for feature flag repository operations
 protocol FeatureFlagRepositoryProtocol {
+    /// The database connection to use
+    var database: Database { get }
+    
     /// Get a feature flag by ID
     /// - Parameters:
     ///   - id: The unique identifier of the feature flag
@@ -52,4 +55,13 @@ protocol FeatureFlagRepositoryProtocol {
     
     /// Create an audit log entry for a feature flag
     func createAuditLog(type: String, message: String, flagId: UUID, userId: UUID) async throws
+    
+    /// Save a UserFeatureFlag
+    func saveOverride(_ override: UserFeatureFlag) async throws
+    
+    /// Find a UserFeatureFlag by ID
+    func findOverride(id: UUID) async throws -> UserFeatureFlag?
+    
+    /// Delete a UserFeatureFlag
+    func deleteOverride(_ override: UserFeatureFlag) async throws
 } 

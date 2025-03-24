@@ -134,4 +134,19 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
         )
         try await log.save(on: database)
     }
+    
+    /// Save a UserFeatureFlag
+    func saveOverride(_ override: UserFeatureFlag) async throws {
+        try await override.save(on: database)
+    }
+    
+    /// Find a UserFeatureFlag by ID
+    func findOverride(id: UUID) async throws -> UserFeatureFlag? {
+        try await UserFeatureFlag.find(id, on: database)
+    }
+    
+    /// Delete a UserFeatureFlag
+    func deleteOverride(_ override: UserFeatureFlag) async throws {
+        try await override.delete(on: database)
+    }
 }
