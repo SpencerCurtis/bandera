@@ -1,0 +1,140 @@
+#extend("layout"):
+    #export("content"):
+        <div class="py-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">#(organization.name)</h1>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Manage your organization and its members
+                        </p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <a href="/dashboard/organizations/#(organization.id)/flags" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Feature Flags
+                        </a>
+                        
+                        #if(isAdmin):
+                            <a href="/dashboard/organizations/#(organization.id)/edit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                                Edit Organization
+                            </a>
+                        #endif
+                    </div>
+                </div>
+                
+                <div class="mt-8">
+                    <div class="md:grid md:grid-cols-3 md:gap-6">
+                        <div class="md:col-span-1">
+                            <div class="px-4 sm:px-0">
+                                <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white">Members</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    People who have access to this organization
+                                </p>
+                                
+                                #if(isAdmin):
+                                    <div class="mt-4">
+                                        <button type="button" id="addMemberButton" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                            Add Member
+                                        </button>
+                                    </div>
+                                #endif
+                            </div>
+                        </div>
+                        
+                        <div class="mt-5 md:mt-0 md:col-span-2">
+                            <div class="bg-white dark:bg-gray-800 shadow sm:rounded-md">
+                                #if(isAdmin):
+                                    <div id="addMemberForm" class="px-4 py-5 sm:p-6 border-b border-gray-200 dark:border-gray-700 hidden">
+                                        <form action="/dashboard/organizations/#(organization.id)/members" method="POST">
+                                            <div class="grid grid-cols-6 gap-6">
+                                                <div class="col-span-6 sm:col-span-3">
+                                                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        User Email
+                                                    </label>
+                                                    <input type="email" name="email" id="email" required class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded-md">
+                                                </div>
+                                                
+                                                <div class="col-span-6 sm:col-span-3">
+                                                    <label for="role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        Role
+                                                    </label>
+                                                    <select id="role" name="role" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white dark:bg-gray-700 dark:border-gray-700 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                        <option value="member">Member</option>
+                                                        <option value="admin">Admin</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div class="col-span-6 flex justify-end">
+                                                    <button type="button" id="cancelAddMember" class="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3">
+                                                        Cancel
+                                                    </button>
+                                                    <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                                        Add Member
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                #endif
+                                
+                                <ul role="list" class="divide-y divide-gray-200 dark:divide-gray-700">
+                                    #for(member in members):
+                                        <li class="px-4 py-4 flex items-center justify-between">
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                    #(member.email)
+                                                </p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full #if(member.role == "admin"):bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100#else:bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100#endif">
+                                                        #(member.role)
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            
+                                            #if(isAdmin && member.id != currentUserId):
+                                                <div class="flex items-center space-x-2">
+                                                    <form method="POST" action="/dashboard/organizations/#(organization.id)/members/#(member.id)/role">
+                                                        <input type="hidden" name="role" value="#if(member.role == "admin"):member#else:admin#endif">
+                                                        <button type="submit" class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                                            Make #if(member.role == "admin"):Member#else:Admin#endif
+                                                        </button>
+                                                    </form>
+                                                    
+                                                    <form method="POST" action="/dashboard/organizations/#(organization.id)/members/#(member.id)/remove">
+                                                        <button type="submit" onclick="return confirm('Are you sure you want to remove this member?');" class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                                            Remove
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            #endif
+                                        </li>
+                                    #endfor
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const addMemberButton = document.getElementById('addMemberButton');
+                const addMemberForm = document.getElementById('addMemberForm');
+                const cancelAddMember = document.getElementById('cancelAddMember');
+                
+                if (addMemberButton && addMemberForm && cancelAddMember) {
+                    addMemberButton.addEventListener('click', function() {
+                        addMemberForm.classList.remove('hidden');
+                        addMemberButton.classList.add('hidden');
+                    });
+                    
+                    cancelAddMember.addEventListener('click', function() {
+                        addMemberForm.classList.add('hidden');
+                        addMemberButton.classList.remove('hidden');
+                    });
+                }
+            });
+        </script>
+    #endexport
+#endextend 
