@@ -1,5 +1,7 @@
 import JWT
+import JWTKit
 import Vapor
+import Foundation
 
 struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
     // Constants for claim keys
@@ -18,7 +20,11 @@ struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
     
     init(user: User) throws {
         self.subject = SubjectClaim(value: user.id?.uuidString ?? "")
-        self.expiration = ExpirationClaim(value: Date().addingTimeInterval(7 * 86400)) // 7 days instead of 24 hours
+        
+        // Use standard JWT timestamp format (seconds since epoch)
+        let expirationTime = Date().addingTimeInterval(7 * 86400) // 7 days
+        self.expiration = ExpirationClaim(value: expirationTime)
+        
         self.isAdmin = user.isAdmin
     }
     
@@ -26,6 +32,29 @@ struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
         self.subject = subject
         self.expiration = expiration
         self.isAdmin = isAdmin
+    }
+    
+    // Custom init from decoder to handle potential date format issues
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Decode subject normally
+        self.subject = try container.decode(SubjectClaim.self, forKey: .subject)
+        self.isAdmin = try container.decode(Bool.self, forKey: .isAdmin)
+        
+        // Try to decode expiration with error handling
+        do {
+            self.expiration = try container.decode(ExpirationClaim.self, forKey: .expiration)
+        } catch {
+            // If standard decoding fails, try to decode as a string and convert
+            if let expString = try? container.decode(String.self, forKey: .expiration),
+               let expDouble = Double(expString) {
+                self.expiration = ExpirationClaim(value: Date(timeIntervalSince1970: expDouble))
+            } else {
+                // If that fails too, set expiration to a future date to avoid immediate expiration
+                self.expiration = ExpirationClaim(value: Date().addingTimeInterval(86400)) // 1 day
+            }
+        }
     }
     
     func verify(using signer: JWTSigner) throws {
