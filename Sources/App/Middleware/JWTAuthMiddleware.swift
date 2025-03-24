@@ -26,7 +26,6 @@ struct JWTAuthMiddleware: AsyncMiddleware {
         do {
             // Verify and decode the JWT token
             let payload = try request.application.jwt.signers.verify(token, as: UserJWTPayload.self)
-            request.auth.login(payload)
             
             // If we need admin role, verify it
             if requireAdmin && !payload.isAdmin {
@@ -34,16 +33,35 @@ struct JWTAuthMiddleware: AsyncMiddleware {
             }
             
             // If we have a valid user ID, fetch and login the user
-            if let userId = UUID(payload.subject.value),
-               let user = try await User.find(userId, on: request.db) {
-                request.auth.login(user)
-                request.session.data["user_id"] = userId.uuidString
-                request.session.data["is_admin"] = String(payload.isAdmin)
+            guard let userId = UUID(payload.subject.value) else {
+                request.logger.warning("Invalid user ID in JWT: \(payload.subject.value)")
+                return try await handleAuthFailure(request)
             }
+            
+            // Try to find the user
+            guard let user = try await User.find(userId, on: request.db) else {
+                request.logger.warning("User not found for ID: \(userId)")
+                // Clear the invalid token
+                let response = try await handleAuthFailure(request)
+                response.cookies["bandera-auth-token"] = .expired
+                return response
+            }
+            
+            // Login both the payload and user
+            request.auth.login(payload)
+            request.auth.login(user)
+            
+            // Set session data
+            request.session.data["user_id"] = userId.uuidString
+            request.session.data["is_admin"] = String(payload.isAdmin)
             
             return try await next.respond(to: request)
         } catch {
-            return try await handleAuthFailure(request)
+            request.logger.warning("JWT verification failed: \(error)")
+            // Clear the invalid token
+            let response = try await handleAuthFailure(request)
+            response.cookies["bandera-auth-token"] = .expired
+            return response
         }
     }
     

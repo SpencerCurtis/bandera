@@ -24,6 +24,12 @@ public func configure(_ app: Application) async throws {
     app.middleware = .init()
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
     app.middleware.use(BanderaErrorMiddleware(environment: app.environment))
+    
+    // Configure sessions
+    app.sessions.use(.memory)
+    app.logger.debug("Using memory sessions")
+    
+    // Configure session middleware
     app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
     
     // Configure CORS
@@ -33,10 +39,6 @@ public func configure(_ app: Application) async throws {
         allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith, .userAgent, .accessControlAllowOrigin]
     )
     app.middleware.use(CORSMiddleware(configuration: corsConfiguration))
-    
-    // Configure sessions
-    app.sessions.use(.memory)
-    app.logger.debug("Configured memory sessions")
     
     // Configure Redis for rate limiting (if not testing)
     if app.environment != .testing {

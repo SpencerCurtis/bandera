@@ -132,6 +132,8 @@ struct FeatureFlagController: RouteCollection {
         // Get the flag details from the service
         let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
         
+        print("flag: \(flag)")
+        
         // Create view context
         let context = ViewContext(
             title: "Feature Flag Details",

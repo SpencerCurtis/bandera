@@ -29,13 +29,19 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
             throw ValidationError.failed("Invalid user ID")
         }
         
+        // First verify the user exists
+        guard try await User.find(uuid, on: database) != nil else {
+            throw ResourceError.notFound("User with ID \(uuid)")
+        }
+        
         // Get all feature flags for this user
         let flags = try await FeatureFlag.query(on: database)
             .filter(\FeatureFlag.$userId, .equal, uuid)
             .all()
         
-        // Get user overrides
+        // Get user overrides, joining with User to ensure we only get overrides for existing users
         let overrides = try await UserFeatureFlag.query(on: database)
+            .join(User.self, on: \UserFeatureFlag.$user.$id == \User.$id)
             .filter(\.$user.$id, .equal, uuid)
             .with(\.$featureFlag)
             .all()
@@ -73,6 +79,7 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
     /// Get all user overrides for a feature flag
     func getOverrides(flagId: UUID) async throws -> [UserFeatureFlag] {
         try await UserFeatureFlag.query(on: database)
+            .join(User.self, on: \UserFeatureFlag.$user.$id == \User.$id)
             .filter(\.$featureFlag.$id == flagId)
             .with(\.$user)
             .all()
@@ -81,6 +88,7 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
     /// Get all audit logs for a feature flag
     func getAuditLogs(flagId: UUID) async throws -> [AuditLog] {
         try await AuditLog.query(on: database)
+            .join(User.self, on: \AuditLog.$user.$id == \User.$id)
             .filter(\.$featureFlag.$id == flagId)
             .with(\.$user)
             .sort(\.$createdAt, .descending)

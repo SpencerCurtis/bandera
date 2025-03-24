@@ -2,38 +2,37 @@ import Vapor
 import Fluent
 import JWT
 
-/// Controller for authentication-related routes
-struct AuthController: RouteCollection {
+final class AuthController: RouteCollection, @unchecked Sendable {
     func boot(routes: RoutesBuilder) throws {
         let auth = routes.grouped("auth")
         
         // Login routes
-        auth.get("login", use: loginPage)
-        auth.post("login", use: login)
+        auth.get("login", use: Self.loginPage)
+        auth.post("login", use: Self.login)
         
         // Signup routes
-        auth.get("signup", use: signupPage)
-        auth.post("signup", use: signup)
+        auth.get("signup", use: Self.signupPage)
+        auth.post("signup", use: Self.signup)
         
         // Logout route
-        auth.get("logout", use: logout)
+        auth.get("logout", use: Self.logout)
     }
     
     /// Render the login page
     @Sendable
-    func loginPage(req: Request) async throws -> View {
+    static func loginPage(req: Request) async throws -> View {
         return try await req.view.render("login")
     }
     
     /// Render the signup page
     @Sendable
-    func signupPage(req: Request) async throws -> View {
+    static func signupPage(req: Request) async throws -> View {
         return try await req.view.render("signup")
     }
     
     /// Handle user signup
     @Sendable
-    func signup(req: Request) async throws -> Response {
+    static func signup(req: Request) async throws -> Response {
         // Validate the request
         try RegisterRequest.validate(content: req)
         let registerRequest = try req.content.decode(RegisterRequest.self)
@@ -70,7 +69,7 @@ struct AuthController: RouteCollection {
     
     /// Handle user login
     @Sendable
-    func login(req: Request) async throws -> Response {
+    static func login(req: Request) async throws -> Response {
         try LoginRequest.validate(content: req)
         let loginRequest = try req.content.decode(LoginRequest.self)
         
@@ -84,16 +83,25 @@ struct AuthController: RouteCollection {
             throw AuthenticationError.invalidCredentials
         }
         
-        let payload = try UserJWTPayload(user: user)
+        // Set session data
+        req.session.data["user_id"] = user.id?.uuidString
+        req.session.data["is_admin"] = String(user.isAdmin)
+        
+        // Create response with redirect
+        let response = req.redirect(to: "/dashboard")
+        
+        // Set auth cookie
+        let payload = UserJWTPayload(
+            subject: .init(value: user.id?.uuidString ?? ""),
+            expiration: .init(value: Date().addingTimeInterval(7 * 24 * 60 * 60)), // 7 days
+            isAdmin: user.isAdmin
+        )
         let token = try req.jwt.sign(payload)
         
-        let response = req.redirect(to: "/dashboard")
         response.cookies["bandera-auth-token"] = .init(
             string: token,
-            expires: Date().addingTimeInterval(7 * 24 * 60 * 60), // 7 days
-            domain: nil,
-            path: "/",
-            isSecure: req.application.environment.isRelease,
+            expires: Date().addingTimeInterval(7 * 24 * 60 * 60),
+            isSecure: req.application.environment != .development,
             isHTTPOnly: true,
             sameSite: .lax
         )
@@ -103,22 +111,10 @@ struct AuthController: RouteCollection {
     
     /// Handle user logout
     @Sendable
-    func logout(req: Request) async throws -> Response {
-        // Clear the session
-        req.session.data = [:]
-        
-        // Clear the token cookie
-        let response = req.redirect(to: "/auth/login")
-        response.cookies["bandera-auth-token"] = .init(
-            string: "",
-            expires: Date(timeIntervalSince1970: 0),
-            domain: nil,
-            path: "/",
-            isSecure: req.application.environment.isRelease,
-            isHTTPOnly: true,
-            sameSite: .lax
-        )
-        
+    static func logout(req: Request) async throws -> Response {
+        req.session.destroy()
+        let response = req.redirect(to: "/login")
+        response.cookies["bandera-auth-token"] = .expired
         return response
     }
 }
