@@ -72,4 +72,19 @@ protocol FeatureFlagServiceProtocol {
     ///   - id: The unique identifier of the override
     ///   - userId: The unique identifier of the user deleting the override
     func deleteOverride(id: UUID, userId: UUID) async throws
+    
+    /// Import a feature flag to an organization
+    /// - Parameters:
+    ///   - flagId: The unique identifier of the flag to import
+    ///   - organizationId: The organization to import the flag to
+    ///   - userId: The user performing the import
+    /// - Returns: The imported feature flag
+    func importFlagToOrganization(flagId: UUID, organizationId: UUID, userId: UUID) async throws -> FeatureFlag
+    
+    /// Export a feature flag from an organization to a user's personal flags
+    /// - Parameters:
+    ///   - flagId: The unique identifier of the flag to export
+    ///   - userId: The user to export the flag to
+    /// - Returns: The exported feature flag
+    func exportFlagToPersonal(flagId: UUID, userId: UUID) async throws -> FeatureFlag
 } 

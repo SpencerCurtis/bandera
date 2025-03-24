@@ -26,11 +26,17 @@ struct FeatureFlagDetailDTO: Content {
     /// When the flag was last updated.
     let updatedAt: Date?
     
+    /// The organization ID this flag belongs to, if any.
+    let organizationId: UUID?
+    
     /// User-specific overrides for this flag.
     let userOverrides: [UserOverrideDTO]
     
     /// Audit log entries for this flag.
     let auditLogs: [AuditLogDTO]
+    
+    /// Organizations the user belongs to (for import functionality)
+    var organizations: [OrganizationWithRoleDTO]?
 }
 
 /// DTO for user override information.
@@ -89,8 +95,10 @@ extension FeatureFlag {
             isEnabled: isEnabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            organizationId: nil,
             userOverrides: userOverrides.map { $0.toDTO() },
-            auditLogs: auditLogs.map { $0.toDTO() }
+            auditLogs: auditLogs.map { $0.toDTO() },
+            organizations: nil
         )
     }
 }

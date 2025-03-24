@@ -75,6 +75,41 @@
                     </div>
                 </dl>
             </div>
+            
+            <!-- Import/Export Section -->
+            <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Flag Management</h4>
+                
+                <!-- If this is a personal flag (no organizationId), show the import options -->
+                #if(!flag.organizationId):
+                    <h5 class="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Import to Organization</h5>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Import this personal flag to one of your organizations:</p>
+                    
+                    #if(flag.organizations && count(flag.organizations) > 0):
+                        <div class="space-y-2">
+                            #for(org in flag.organizations):
+                                <form method="POST" action="/dashboard/feature-flags/#(flag.id)/import/#(org.id)" class="inline">
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                        Import to #(org.name)
+                                    </button>
+                                </form>
+                            #endfor
+                        </div>
+                    #else:
+                        <p class="text-sm text-gray-500 dark:text-gray-400">You don't belong to any organizations.</p>
+                    #endif
+                #else:
+                    <!-- If this is an organization flag, show export option -->
+                    <h5 class="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Export to Personal Flags</h5>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Export this organization flag to your personal flags:</p>
+                    
+                    <form method="POST" action="/dashboard/feature-flags/#(flag.id)/export" class="inline">
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            Export to Personal Flags
+                        </button>
+                    </form>
+                #endif
+            </div>
 
             <!-- User Overrides Section -->
             <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">

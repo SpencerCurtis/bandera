@@ -185,12 +185,14 @@ private struct EmptyFeatureFlagService: FeatureFlagServiceProtocol {
             key: "",
             type: .boolean,
             defaultValue: "false",
-            description: "",
+            description: nil,
             isEnabled: false,
-            createdAt: Date(),
-            updatedAt: Date(),
+            createdAt: nil,
+            updatedAt: nil,
+            organizationId: nil,
             userOverrides: [],
-            auditLogs: []
+            auditLogs: [],
+            organizations: []
         )
     }
     func getAllFlags(userId: UUID) async throws -> [FeatureFlag] { [] }
@@ -211,6 +213,22 @@ private struct EmptyFeatureFlagService: FeatureFlagServiceProtocol {
     func broadcastDeleteEvent(id: UUID, userId: UUID) async throws {}
     func createOverride(flagId: UUID, userId: UUID, value: String, createdBy: UUID) async throws {}
     func deleteOverride(id: UUID, userId: UUID) async throws {}
+    func importFlagToOrganization(flagId: UUID, organizationId: UUID, userId: UUID) async throws -> FeatureFlag {
+        FeatureFlag(
+            key: "imported-flag",
+            type: .boolean,
+            defaultValue: "false",
+            description: "Imported flag"
+        )
+    }
+    func exportFlagToPersonal(flagId: UUID, userId: UUID) async throws -> FeatureFlag {
+        FeatureFlag(
+            key: "exported-flag",
+            type: .boolean,
+            defaultValue: "false",
+            description: "Exported flag"
+        )
+    }
 }
 
 private struct EmptyAuthService: AuthServiceProtocol {

@@ -76,6 +76,15 @@ final class AuthController: RouteCollection, @unchecked Sendable {
         let user = try User.create(from: registerRequest)
         try await user.save(on: req.db)
         
+        // Create personal organization for the user
+        let personalOrgName = "\(registerRequest.email.split(separator: "@").first?.trimmingCharacters(in: .whitespaces) ?? "User")'s Personal Organization"
+        let organizationService = try req.organizationService()
+        let personalOrg = try await organizationService.create(
+            CreateOrganizationRequest(name: personalOrgName),
+            creatorId: user.id!
+        )
+        req.logger.info("Created personal organization \(personalOrg.id!) for user \(user.id!)")
+        
         // Authenticate user for the current request
         req.auth.login(user)
         

@@ -8,16 +8,23 @@ struct FeatureFlagController: RouteCollection {
         // Routes are already protected by JWTAuthMiddleware.standard in routes.swift
         // So we don't need to apply authentication middleware again
         
-        // Feature flag routes - these are registered under /dashboard/feature-flags in routes.swift
+        // Base routes
+        routes.get(use: index)
+        routes.get(":id", use: detail)
         routes.get("create", use: createForm)
         routes.post("create", use: create)
-        routes.get(":id", use: detail)
-        routes.post(":id", "toggle", use: toggle)
+        routes.get(":id", "edit", use: editForm)
+        routes.post(":id", "edit", use: update)
         
-        // Admin-only routes - we'll check isAdmin inside the handlers instead of using middleware
-        routes.post(":id", "delete", use: delete)
+        // Flag actions
+        routes.post(":id", "toggle", use: toggleFlag)
+        routes.delete(":id", use: deleteFlag)
         
-        // Feature flag override routes
+        // Import/Export endpoints
+        routes.post(":id", "import", ":organizationId", use: importFlag)
+        routes.post(":id", "export", use: exportFlag)
+        
+        // User overrides
         routes.get(":id", "overrides", "new", use: createOverrideForm)
         routes.post(":id", "overrides", "new", use: createOverride)
         routes.post(":id", "overrides", ":overrideId", "delete", use: deleteOverride)
@@ -34,6 +41,51 @@ struct FeatureFlagController: RouteCollection {
             title: "Create Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin
+        )
+        
+        return try await req.view.render("feature-flag-form", context)
+    }
+    
+    /// Index page for feature flags
+    @Sendable
+    func index(req: Request) async throws -> View {
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get all flags for the user
+        let flags = try await req.services.featureFlagService.getAllFlags(userId: user.id!)
+        
+        // Create view context
+        let context = ViewContext(
+            title: "Feature Flags",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            flags: flags
+        )
+        
+        return try await req.view.render("feature-flags", context)
+    }
+    
+    /// Renders the edit form for a feature flag
+    @Sendable
+    func editForm(req: Request) async throws -> View {
+        // Get the flag ID from the request parameters
+        guard let id = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
+        }
+        
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get the flag details
+        let flag = try await req.services.featureFlagService.getFlag(id: id, userId: user.id!)
+        
+        // Create view context
+        let context = ViewContext(
+            title: "Edit Feature Flag",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            flag: flag
         )
         
         return try await req.view.render("feature-flag-form", context)
@@ -85,7 +137,7 @@ struct FeatureFlagController: RouteCollection {
     
     /// Deletes a feature flag.
     @Sendable
-    func delete(req: Request) async throws -> HTTPStatus {
+    func deleteFlag(req: Request) async throws -> HTTPStatus {
         // Get the flag ID from the request parameters
         guard let id = req.parameters.get("id", as: UUID.self) else {
             throw ValidationError.failed("Invalid feature flag ID")
@@ -146,10 +198,15 @@ struct FeatureFlagController: RouteCollection {
             let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
             
             req.logger.debug("Flag details retrieved: id=\(flag.id), key=\(flag.key)")
-            print("flag: \(flag)")
             
-            // Create a safe version of the flag for display 
-            let safeFlag = createSafeFlag(from: flag)
+            // Create a safe version of the flag for display
+            var safeFlag = createSafeFlag(from: flag)
+            
+            // Ensure organizations is never nil to avoid Leaf template issues
+            if safeFlag.organizations == nil {
+                safeFlag.organizations = []
+            }
+            
             req.logger.debug("Safe flag created: id=\(safeFlag.id), key=\(safeFlag.key)")
             
             // Create a struct with all the data we need for the template
@@ -182,24 +239,8 @@ struct FeatureFlagController: RouteCollection {
             
             return try await req.view.render("feature-flag-detail", templateContext)
         } catch {
-            // Log the error
-            req.logger.error("Error processing feature flag detail: \(error)")
-            
-            // Return a simplified error view
-            let errorContext = ViewContext(
-                title: "Feature Flag Error",
-                isAuthenticated: true,
-                isAdmin: user.isAdmin,
-                errorMessage: "Error displaying flag details: \(error.localizedDescription)",
-                environment: "development",
-                uptime: "N/A", 
-                databaseConnected: true,
-                redisConnected: true,
-                memoryUsage: "N/A",
-                lastDeployment: "N/A"
-            )
-            
-            return try await req.view.render("error", errorContext)
+            req.logger.error("Error retrieving flag details: \(error)")
+            throw error
         }
     }
     
@@ -218,14 +259,8 @@ struct FeatureFlagController: RouteCollection {
         
         // Create a copy of audit logs with safely formatted dates
         let safeAuditLogs = flag.auditLogs.map { log -> AuditLogDTO in
-            // Use a safer approach for the date that won't throw conversion errors
-            let safeCreatedAt: Date
-            if let timestamp = try? Date(timeIntervalSince1970: log.createdAt.timeIntervalSince1970) {
-                safeCreatedAt = timestamp
-            } else {
-                // If there's a conversion issue, use current date as fallback
-                safeCreatedAt = Date()
-            }
+            // Since Date(timeIntervalSince1970:) is not failable, we don't need a conditional
+            let safeCreatedAt = Date(timeIntervalSince1970: log.createdAt.timeIntervalSince1970)
             
             return AuditLogDTO(
                 type: log.type,
@@ -255,14 +290,16 @@ struct FeatureFlagController: RouteCollection {
             isEnabled: flag.isEnabled,
             createdAt: safeCreatedAt,
             updatedAt: safeUpdatedAt,
+            organizationId: flag.organizationId,
             userOverrides: safeUserOverrides,
-            auditLogs: safeAuditLogs
+            auditLogs: safeAuditLogs,
+            organizations: flag.organizations
         )
     }
     
     /// Toggles a feature flag on/off.
     @Sendable
-    func toggle(req: Request) async throws -> Response {
+    func toggleFlag(req: Request) async throws -> Response {
         // Get the flag ID from the request parameters
         guard let id = req.parameters.get("id", as: UUID.self) else {
             throw ValidationError.failed("Invalid feature flag ID")
@@ -400,5 +437,61 @@ struct FeatureFlagController: RouteCollection {
         
         // Redirect back to the flag detail page
         return req.redirect(to: "/dashboard/feature-flags/\(id)")
+    }
+    
+    /// Import a feature flag to an organization
+    @Sendable
+    private func importFlag(req: Request) async throws -> Response {
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get the flag ID from the request parameters
+        guard let flagId = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
+        }
+        
+        // Get the organization ID from the request parameters
+        guard let organizationId = req.parameters.get("organizationId", as: UUID.self) else {
+            throw ValidationError.failed("Invalid organization ID")
+        }
+        
+        // Import the flag
+        let featureFlagService = req.services.featureFlagService
+        let importedFlag = try await featureFlagService.importFlagToOrganization(
+            flagId: flagId,
+            organizationId: organizationId,
+            userId: user.id!
+        )
+        
+        // Set success message as a flash message
+        req.session.data["success"] = "Feature flag '\(importedFlag.key)' imported to organization successfully"
+        
+        // Redirect to the organization's flags page
+        return req.redirect(to: "/dashboard/organizations/\(organizationId)/flags")
+    }
+    
+    /// Export a feature flag to user's personal flags
+    @Sendable
+    private func exportFlag(req: Request) async throws -> Response {
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get the flag ID from the request parameters
+        guard let flagId = req.parameters.get("id", as: UUID.self) else {
+            throw ValidationError.failed("Invalid feature flag ID")
+        }
+        
+        // Export the flag
+        let featureFlagService = req.services.featureFlagService
+        let exportedFlag = try await featureFlagService.exportFlagToPersonal(
+            flagId: flagId,
+            userId: user.id!
+        )
+        
+        // Set success message as a flash message
+        req.session.data["success"] = "Feature flag '\(exportedFlag.key)' exported to your personal flags successfully"
+        
+        // Redirect to the dashboard
+        return req.redirect(to: "/dashboard")
     }
 }

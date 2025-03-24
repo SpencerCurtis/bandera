@@ -35,9 +35,21 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
                 throw ResourceError.notFound("Feature flag with ID \(id)")
             }
             
-            // Check if flag belongs to this user
-            if flag.$userId.wrappedValue != userId {
-                throw AuthenticationError.insufficientPermissions
+            // If this is a personal flag, check if it belongs to this user
+            if flag.organizationId == nil {
+                if flag.$userId.wrappedValue != userId {
+                    throw AuthenticationError.insufficientPermissions
+                }
+            } else {
+                // This is an organization flag, check if user is a member of the organization
+                let isMember = try await OrganizationUser.query(on: repository.database)
+                    .filter(\.$organization.$id == flag.organizationId!)
+                    .filter(\.$user.$id == userId)
+                    .first() != nil
+                    
+                if !isMember {
+                    throw AuthenticationError.insufficientPermissions
+                }
             }
             
             return flag
@@ -196,11 +208,33 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             // Get enabled status
             let isEnabled = try await repository.isEnabled(id: id)
             
+            // Get user's organizations (for import functionality)
+            let organizationRepository = OrganizationRepository(db: repository.database)
+            let organizations = try await OrganizationUser.query(on: repository.database)
+                .filter(\.$user.$id == userId)
+                .with(\.$organization)
+                .all()
+                .map { 
+                    OrganizationWithRoleDTO(
+                        organization: $0.organization,
+                        role: $0.role
+                    )
+                }
+            
             // Convert to DTO
-            return flag.toDetailDTO(
+            return FeatureFlagDetailDTO(
+                id: flag.id!,
+                key: flag.key,
+                type: flag.type,
+                defaultValue: flag.defaultValue,
+                description: flag.description,
                 isEnabled: isEnabled,
-                userOverrides: overrides,
-                auditLogs: auditLogs
+                createdAt: flag.createdAt,
+                updatedAt: flag.updatedAt,
+                organizationId: flag.organizationId,
+                userOverrides: overrides.map { $0.toDTO() },
+                auditLogs: auditLogs.map { $0.toDTO() },
+                organizations: organizations
             )
         }
     }
@@ -329,6 +363,139 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             
             // Broadcast the event
             try await broadcastEvent(FeatureFlagEventType.overrideDeleted, flag: flag)
+        }
+    }
+    
+    /// Import a feature flag to an organization
+    /// - Parameters:
+    ///   - flagId: The unique identifier of the flag to import
+    ///   - organizationId: The organization to import the flag to
+    ///   - userId: The user performing the import
+    /// - Returns: The imported feature flag
+    func importFlagToOrganization(flagId: UUID, organizationId: UUID, userId: UUID) async throws -> FeatureFlag {
+        return try await withErrorHandling {
+            // Get the original flag
+            guard let originalFlag = try await repository.get(id: flagId) else {
+                throw ResourceError.notFound("Feature flag with ID \(flagId)")
+            }
+            
+            // Check if the user has access to this flag
+            if originalFlag.userId != userId {
+                throw AuthenticationError.insufficientPermissions
+            }
+            
+            // Check if the user is an admin of the target organization
+            let db = repository.database
+            let isAdmin = try await OrganizationUser.query(on: db)
+                .filter(\.$organization.$id == organizationId)
+                .filter(\.$user.$id == userId)
+                .filter(\.$role == .admin)
+                .first() != nil
+                
+            if !isAdmin {
+                throw AuthenticationError.notAuthorized(reason: "You must be an admin of the organization to import flags")
+            }
+            
+            // Check if a flag with the same key already exists in the organization
+            let exists = try await FeatureFlag.query(on: db)
+                .filter(\.$key == originalFlag.key)
+                .filter(\.$organizationId == organizationId)
+                .first() != nil
+                
+            if exists {
+                throw ValidationError.failed("A flag with the key '\(originalFlag.key)' already exists in this organization")
+            }
+            
+            // Create a new flag for the organization
+            let newFlag = FeatureFlag(
+                key: originalFlag.key,
+                type: originalFlag.type,
+                defaultValue: originalFlag.defaultValue,
+                description: originalFlag.description,
+                userId: userId,  // Track who imported it
+                organizationId: organizationId
+            )
+            
+            try await repository.save(newFlag)
+            
+            // Create initial flag status (disabled by default)
+            try await repository.setEnabled(id: newFlag.id!, enabled: false)
+            
+            // Create audit log
+            try await repository.createAuditLog(
+                type: "imported",
+                message: "Flag imported from personal flag (ID: \(originalFlag.id!))",
+                flagId: newFlag.id!,
+                userId: userId
+            )
+            
+            return newFlag
+        }
+    }
+    
+    /// Export a feature flag from an organization to a user's personal flags
+    /// - Parameters:
+    ///   - flagId: The unique identifier of the flag to export
+    ///   - userId: The user to export the flag to
+    /// - Returns: The exported feature flag
+    func exportFlagToPersonal(flagId: UUID, userId: UUID) async throws -> FeatureFlag {
+        return try await withErrorHandling {
+            // Get the original flag
+            guard let originalFlag = try await repository.get(id: flagId) else {
+                throw ResourceError.notFound("Feature flag with ID \(flagId)")
+            }
+            
+            // Check if the flag belongs to an organization
+            guard let organizationId = originalFlag.organizationId else {
+                throw ValidationError.failed("This flag is not an organization flag")
+            }
+            
+            // Check if the user is a member of the organization
+            let db = repository.database
+            let isMember = try await OrganizationUser.query(on: db)
+                .filter(\.$organization.$id == organizationId)
+                .filter(\.$user.$id == userId)
+                .first() != nil
+                
+            if !isMember {
+                throw AuthenticationError.notAuthorized(reason: "You must be a member of the organization to export flags")
+            }
+            
+            // Check if a flag with the same key already exists for this user
+            let exists = try await FeatureFlag.query(on: db)
+                .filter(\.$key == originalFlag.key)
+                .filter(\.$userId == userId)
+                .filter(\.$organizationId == nil)  // Personal flags have no organization
+                .first() != nil
+                
+            if exists {
+                throw ValidationError.failed("A personal flag with the key '\(originalFlag.key)' already exists")
+            }
+            
+            // Create a new personal flag
+            let newFlag = FeatureFlag(
+                key: originalFlag.key,
+                type: originalFlag.type,
+                defaultValue: originalFlag.defaultValue,
+                description: originalFlag.description,
+                userId: userId,
+                organizationId: nil  // No organization = personal flag
+            )
+            
+            try await repository.save(newFlag)
+            
+            // Create initial flag status (disabled by default)
+            try await repository.setEnabled(id: newFlag.id!, enabled: false)
+            
+            // Create audit log
+            try await repository.createAuditLog(
+                type: "exported",
+                message: "Flag exported from organization (ID: \(organizationId))",
+                flagId: newFlag.id!,
+                userId: userId
+            )
+            
+            return newFlag
         }
     }
 }
