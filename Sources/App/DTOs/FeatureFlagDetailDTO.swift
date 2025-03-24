@@ -98,9 +98,10 @@ extension FeatureFlag {
 extension UserFeatureFlag {
     /// Convert to a user override DTO.
     func toDTO() -> UserOverrideDTO {
-        UserOverrideDTO(
+        // Create the DTO
+        return UserOverrideDTO(
             id: id!,
-            user: user.toDTO(),
+            user: UserDTO(id: self.$user.id, email: "User \(self.$user.id)"),
             value: value,
             updatedAt: updatedAt
         )

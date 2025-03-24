@@ -248,7 +248,18 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             // Verify the flag exists and the creator has access to it
             let flag = try await getFlag(id: flagId, userId: createdBy)
             
-            // Create or update the override
+            // Check if an override already exists for this user/flag combination
+            let existingOverrides = try await UserFeatureFlag.query(on: repository.database)
+                .filter(\.$featureFlag.$id == flagId)
+                .filter(\.$user.$id == userId)
+                .all()
+                
+            // Delete existing overrides to avoid unique constraint violations
+            for existing in existingOverrides {
+                try await existing.delete(on: repository.database)
+            }
+            
+            // Create a new override
             let override = UserFeatureFlag(
                 featureFlagId: flagId,
                 userId: userId,

@@ -78,11 +78,16 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
     
     /// Get all user overrides for a feature flag
     func getOverrides(flagId: UUID) async throws -> [UserFeatureFlag] {
-        try await UserFeatureFlag.query(on: database)
-            .join(User.self, on: \UserFeatureFlag.$user.$id == \User.$id)
+        let overrides = try await UserFeatureFlag.query(on: database)
             .filter(\.$featureFlag.$id == flagId)
-            .with(\.$user)
             .all()
+            
+        // Load user relationships for each override
+        for override in overrides {
+            try await override.$user.load(on: database)
+        }
+        
+        return overrides
     }
     
     /// Get all audit logs for a feature flag
