@@ -27,6 +27,9 @@
                             <a href="/dashboard" class="#if(title == "Dashboard"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Dashboard
                             </a>
+                            <a href="/dashboard/organizations" class="#if(title == "Organizations" || title == "Organization Feature Flags" || title == "Create Organization" || title == "Edit Organization"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Organizations
+                            </a>
                             #if(isAdmin):
                             <a href="/routes" class="#if(title == "Application Routes"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Routes
@@ -45,7 +48,7 @@
     #endif
     
     <main class="flex-grow">
-        #if(error):
+        #if(errorMessage):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="rounded-md bg-red-50 dark:bg-red-900 p-4">
                     <div class="flex">
@@ -56,20 +59,15 @@
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
-                                #(error)
+                                #(errorMessage)
                             </h3>
-                            #if(recoverySuggestion):
-                                <div class="mt-2 text-sm text-red-700 dark:text-red-300">
-                                    #(recoverySuggestion)
-                                </div>
-                            #endif
                         </div>
                     </div>
                 </div>
             </div>
         #endif
         
-        #if(success):
+        #if(successMessage):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="rounded-md bg-green-50 dark:bg-green-900 p-4">
                     <div class="flex">
@@ -80,7 +78,45 @@
                         </div>
                         <div class="ml-3">
                             <p class="text-sm font-medium text-green-800 dark:text-green-200">
-                                #(success)
+                                #(successMessage)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        #endif
+        
+        #if(warningMessage):
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="rounded-md bg-yellow-50 dark:bg-yellow-900 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400 dark:text-yellow-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                #(warningMessage)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        #endif
+        
+        #if(infoMessage):
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="rounded-md bg-blue-50 dark:bg-blue-900 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400 dark:text-blue-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                #(infoMessage)
                             </p>
                         </div>
                     </div>
