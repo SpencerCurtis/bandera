@@ -242,3 +242,33 @@ rule "Follow feature flag patterns" {
     "Use feature flag documentation"
   ]
 } 
+
+rule "Follow development workflow best practices" {
+  description = "Maintain consistent development workflow for Bandera project"
+  patterns = [
+    "Use the restart.sh script to restart the application",
+    "Kill existing processes before starting a new one",
+    "Reset passwords with dev commands when needed",
+    "Use development routes for efficient debugging",
+    "Utilize the reset-admin command for admin password issues",
+    "Remember default credentials: admin@example.com / password",
+    "Use pkill -9 App || true to ensure port 8080 is available",
+    "Run pkill -9 App || true && swift run to restart the app in one command",
+    "Check /dev/users to see all available user accounts",
+    "Use reset-password command for any user password issues"
+  ]
+}
+
+rule "Safe server process termination" {
+  description = "Use only PID-based process termination to avoid killing unrelated applications"
+  patterns = [
+    "Always use `lsof -i :<port>` to identify the specific PID of the Vapor server",
+    "Use `kill <PID>` for normal termination of the identified process",
+    "Use `kill -9 <PID>` only when normal termination fails",
+    "Never use generic commands like `pkill App` or `pkill Run` that can terminate multiple apps",
+    "For scripts, store and validate PIDs before terminating processes",
+    "Use process name identification only for PID discovery, never for direct termination",
+    "Always verify the correct process before termination with `ps -p <PID>`",
+    "Document server termination procedures in README.md"
+  ]
+} 
