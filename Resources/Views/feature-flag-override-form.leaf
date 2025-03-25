@@ -27,7 +27,7 @@
                     </div>
 
                     <!-- Optional dropdown of known users as reference (only show if we have users) -->
-                    #if(count(allUsers) > 0):
+                    #if(#safeCount(allUsers) > 0):
                         <div class="mt-4">
                             <label for="referenceUsers" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Known Users (Reference Only)</label>
                             <select id="referenceUsers" 

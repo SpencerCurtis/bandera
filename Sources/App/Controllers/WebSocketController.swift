@@ -4,11 +4,13 @@ import WebSocketKit
 /// Controller for handling WebSocket connections
 struct WebSocketController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // WebSocket routes require authentication
-        let protected = routes.grouped(JWTAuthMiddleware.api)
+        // Handle WebSocket connections for feature flag updates
+        // We now register routes directly without re-adding middleware
+        // since middleware will be applied at registration time in routes.swift
         
-        // WebSocket endpoint for feature flag updates
-        protected.webSocket("ws", "feature-flags") { req, ws in
+        // WebSocket endpoint for feature flag updates 
+        // This route requires authentication which should be applied in routes.swift
+        routes.webSocket("ws", "feature-flags") { req, ws in
             req.logger.info("WebSocket connection established")
             
             // Send initial feature flags
@@ -89,8 +91,7 @@ struct WebSocketController: RouteCollection {
         }
         
         // Keep the existing endpoint for backward compatibility
-        let ws = routes.grouped("ws")
-        ws.get("feature-flags") { req -> Response in
+        routes.get("ws", "feature-flags") { req -> Response in
             guard let upgrade = req.headers[.upgrade].first?.lowercased(), upgrade == "websocket" else {
                 throw ValidationError.failed("WebSocket upgrade required")
             }

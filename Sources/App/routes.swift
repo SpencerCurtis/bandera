@@ -21,8 +21,11 @@ func routes(_ app: Application) throws {
     let authController = AuthController()
     try app.register(collection: authController)
     
-    // Dashboard routes
-    let dashboard = app.grouped("dashboard").grouped(JWTAuthMiddleware.standard)
+    // Apply JWT middleware to all dashboard routes
+    let dashboard = app.grouped(["dashboard"])
+        .grouped(JWTAuthMiddleware.standard)
+    
+    // Dashboard home route
     dashboard.get { req async throws -> View in
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -42,17 +45,18 @@ func routes(_ app: Application) throws {
     }
     
     // Feature flag routes under dashboard/feature-flags
-    let featureFlags = dashboard.grouped("feature-flags")
     let featureFlagController = FeatureFlagController()
-    try featureFlags.register(collection: featureFlagController)
+    try dashboard.grouped("feature-flags")
+        .register(collection: featureFlagController)
     
-    // Organization routes
+    // Organization API routes (separate from dashboard)
     let organizationController = OrganizationController()
     try app.register(collection: organizationController)
     
-    // WebSocket routes
+    // WebSocket routes - these use the API middleware that throws instead of redirects
     let webSocketController = WebSocketController()
-    try app.register(collection: webSocketController)
+    try app.grouped(JWTAuthMiddleware.api)
+        .register(collection: webSocketController)
     
     // Error test routes (only in development)
     if app.environment == .development {

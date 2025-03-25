@@ -129,7 +129,7 @@
                                     </div>
                                 #endif
                                 
-                                #if(count(overrides) > 0):
+                                #if(#safeCount(overrides) > 0):
                                     <ul role="list" class="divide-y divide-gray-200 dark:divide-gray-700">
                                         #for(override in overrides):
                                             <li class="px-4 py-4 flex items-center justify-between">
