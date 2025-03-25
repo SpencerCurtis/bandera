@@ -276,7 +276,7 @@ private struct EmptyOrganizationService: OrganizationServiceProtocol {
     }
     
     func getWithMembers(id: UUID, requesterId: UUID) async throws -> OrganizationWithMembersDTO {
-        OrganizationWithMembersDTO(organization: OrganizationDTO(id: id, name: "", createdAt: Date(), updatedAt: Date()), members: [])
+        OrganizationWithMembersDTO(organization: OrganizationDTO(id: id, name: "", isPersonal: false, createdAt: Date(), updatedAt: Date()), members: [])
     }
     
     func updateUserRole(to organizationId: UUID, userId: UUID, role: OrganizationRole) async throws -> OrganizationUser {
@@ -284,6 +284,6 @@ private struct EmptyOrganizationService: OrganizationServiceProtocol {
     }
     
     func createOrganizationDTO(from organization: Organization) -> OrganizationDTO {
-        OrganizationDTO(id: organization.id ?? UUID(), name: organization.name, createdAt: organization.createdAt, updatedAt: organization.updatedAt)
+        OrganizationDTO(id: organization.id ?? UUID(), name: organization.name, isPersonal: false, createdAt: organization.createdAt, updatedAt: organization.updatedAt)
     }
 }

@@ -428,10 +428,13 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             // Create initial flag status (disabled by default)
             try await repository.setEnabled(id: newFlag.id!, enabled: false)
             
+            // Delete the original flag
+            try await repository.delete(originalFlag)
+            
             // Create audit log
             try await repository.createAuditLog(
                 type: "imported",
-                message: "Flag imported from personal flag (ID: \(originalFlag.id!))",
+                message: "Flag imported from personal flag (ID: \(originalFlag.id!)) and original deleted",
                 flagId: newFlag.id!,
                 userId: userId
             )
@@ -494,10 +497,13 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             // Create initial flag status (disabled by default)
             try await repository.setEnabled(id: newFlag.id!, enabled: false)
             
+            // Delete the original flag
+            try await repository.delete(originalFlag)
+            
             // Create audit log
             try await repository.createAuditLog(
                 type: "exported",
-                message: "Flag exported from organization (ID: \(organizationId))",
+                message: "Flag exported from organization (ID: \(organizationId)) and original deleted",
                 flagId: newFlag.id!,
                 userId: userId
             )

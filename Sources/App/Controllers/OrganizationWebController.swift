@@ -39,6 +39,7 @@ struct OrganizationWebController: RouteCollection {
         organizations.get(":organizationId", "flags", ":flagId", "edit", use: editFlagForm)
         organizations.post(":organizationId", "flags", ":flagId", "edit", use: updateFlag)
         organizations.post(":organizationId", "flags", ":flagId", "delete", use: deleteFlag)
+        organizations.post(":organizationId", "flags", ":flagId", "export", use: exportFlag)
         
         // Feature flag overrides
         organizations.post(":organizationId", "flags", ":flagId", "overrides", use: addOverride)
@@ -183,6 +184,10 @@ struct OrganizationWebController: RouteCollection {
         let organizationRepository = try req.organizationRepository()
         let isOrgAdmin = try await organizationRepository.isAdmin(userId: user.id!, organizationId: organizationId)
         
+        // Get the organization's feature flags
+        let featureFlagRepository = req.services.featureFlagRepository
+        let flags = try await featureFlagRepository.getAllForOrganization(organizationId: organizationId)
+        
         // Create context
         let context = ViewContext(
             title: organizationWithMembers.name,
@@ -195,6 +200,7 @@ struct OrganizationWebController: RouteCollection {
             redisConnected: true,
             memoryUsage: "N/A",
             lastDeployment: "N/A",
+            flags: flags,
             organization: OrganizationDTO(
                 id: organizationWithMembers.id,
                 name: organizationWithMembers.name,
@@ -561,44 +567,29 @@ struct OrganizationWebController: RouteCollection {
         // Get the organization
         let organizationService = try req.organizationService()
         let organization = try await organizationService.get(id: organizationId)
+        let orgDTO = organizationService.createOrganizationDTO(from: organization)
         
-        // Get the feature flag
-        let featureFlagRepository = req.services.featureFlagRepository
-        guard let flag = try await featureFlagRepository.get(id: flagId) else {
-            throw NotFoundError.featureFlag(flagId)
-        }
+        // Get the feature flag details
+        let featureFlagService = req.services.featureFlagService
+        let flag = try await featureFlagService.getFlagDetails(id: flagId, userId: user.id!)
         
         // Verify this flag belongs to the organization
         if flag.organizationId != organizationId {
             throw AuthorizationError.notAuthorized(reason: "This feature flag does not belong to this organization")
         }
         
-        // Get user overrides for this flag
-        let overrides = try await featureFlagRepository.getOverrides(flagId: flagId)
-        
         // Get organization members for the override form
         let members = try await organizationRepository.getMembers(organizationId: organizationId)
         
-        // Create context
-        let context = ViewContext(
-            title: flag.key,
-            isAuthenticated: true,
-            isAdmin: isOrgAdmin,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
+        // Create unified context
+        let context = UnifiedFlagDetailContext.organizational(
             flag: flag,
-            allUsers: members.map { member in 
-                member.user
-            },
-            overrides: overrides,
-            organization: organizationService.createOrganizationDTO(from: organization)
+            organization: orgDTO,
+            canEdit: isOrgAdmin,
+            members: members.map { $0.user }
         )
         
-        return try await req.view.render("organization-flag-detail", context)
+        return try await req.view.render("flag-detail", context)
     }
     
     /// Show form to edit a feature flag
@@ -859,5 +850,34 @@ struct OrganizationWebController: RouteCollection {
         
         // Redirect to the flag detail page
         return req.redirect(to: "/dashboard/organizations/\(organizationId)/flags/\(flagId)")
+    }
+    
+    /// Export a feature flag to user's personal flags
+    @Sendable
+    private func exportFlag(req: Request) async throws -> Response {
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get the organization ID and flag ID
+        guard let organizationId = req.parameters.get("organizationId", as: UUID.self) else {
+            throw ValidationError.failed("Invalid organization ID")
+        }
+        
+        guard let flagId = req.parameters.get("flagId", as: UUID.self) else {
+            throw ValidationError.failed("Invalid flag ID")
+        }
+        
+        // Export the flag
+        let featureFlagService = req.services.featureFlagService
+        let exportedFlag = try await featureFlagService.exportFlagToPersonal(
+            flagId: flagId,
+            userId: user.id!
+        )
+        
+        // Set success message as a flash message
+        req.session.data["success"] = "Feature flag '\(exportedFlag.key)' exported to your personal flags successfully"
+        
+        // Redirect to the dashboard page with feature flags
+        return req.redirect(to: "/dashboard")
     }
 } 

@@ -49,6 +49,11 @@ func routes(_ app: Application) throws {
     try dashboard.grouped("feature-flags")
         .register(collection: featureFlagController)
     
+    // Organization web routes
+    let organizationWebController = OrganizationWebController()
+    try dashboard.grouped("organizations")
+        .register(collection: organizationWebController)
+    
     // Organization API routes (separate from dashboard)
     let organizationController = OrganizationController()
     try app.register(collection: organizationController)

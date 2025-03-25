@@ -24,7 +24,6 @@ struct FeatureFlagController: RouteCollection {
         
         // Import/Export endpoints
         routes.post(":id", "import", ":organizationId", use: importFlag)
-        routes.post(":id", "export", use: exportFlag)
         
         // User overrides
         routes.get(":id", "overrides", "new", use: createOverrideForm)
@@ -270,37 +269,45 @@ struct FeatureFlagController: RouteCollection {
                 safeFlag.organizations = []
             }
             
-            req.logger.debug("Safe flag created: id=\(safeFlag.id), key=\(safeFlag.key)")
+            // Get members for user overrides if user is admin
+            let members = user.isAdmin ? try await req.services.userRepository.getAllUsers() : []
             
-            // Create a struct with all the data we need for the template
-            struct TemplateContext: Encodable {
-                var title: String
-                var isAuthenticated: Bool
-                var isAdmin: Bool
-                var environment: String
-                var uptime: String
-                var databaseConnected: Bool
-                var redisConnected: Bool
-                var memoryUsage: String
-                var lastDeployment: String
-                var flag: FeatureFlagDetailDTO
+            // Create context based on whether this is a personal or organization flag
+            var context: UnifiedFlagDetailContext
+            if let orgId = flag.organizationId {
+                // Get organization details
+                let orgService = try req.organizationService()
+                let organization = try await orgService.get(id: orgId)
+                let orgDTO = orgService.createOrganizationDTO(from: organization)
+                
+                // Check if user is an admin of this organization
+                let isOrgAdmin = try await req.organizationRepository().isAdmin(userId: user.id!, organizationId: orgId)
+                
+                context = .organizational(
+                    flag: safeFlag,
+                    organization: orgDTO,
+                    canEdit: isOrgAdmin,
+                    members: members
+                )
+            } else {
+                // Create a personal organization DTO
+                let personalOrgDTO = OrganizationDTO(
+                    id: UUID(),
+                    name: "Personal",
+                    isPersonal: true
+                )
+                
+                context = .personal(
+                    flag: safeFlag,
+                    canEdit: true, // User can always edit their personal flags
+                    members: members
+                )
+                
+                // Set the organization after creation since personal() factory doesn't take it
+                context.organization = personalOrgDTO
             }
             
-            // Create a new context with the flag directly available
-            let templateContext = TemplateContext(
-                title: "Feature Flag Details",
-                isAuthenticated: true,
-                isAdmin: user.isAdmin,
-                environment: "development",
-                uptime: "N/A",
-                databaseConnected: true,
-                redisConnected: true,
-                memoryUsage: "N/A",
-                lastDeployment: "N/A",
-                flag: safeFlag
-            )
-            
-            return try await req.view.render("feature-flag-detail", templateContext)
+            return try await req.view.render("flag-detail", context)
         } catch {
             req.logger.error("Error retrieving flag details: \(error)")
             throw error
@@ -504,7 +511,7 @@ struct FeatureFlagController: RouteCollection {
     
     /// Import a feature flag to an organization
     @Sendable
-    private func importFlag(req: Request) async throws -> Response {
+    func importFlag(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
         
@@ -531,31 +538,6 @@ struct FeatureFlagController: RouteCollection {
         
         // Redirect to the organization's flags page
         return req.redirect(to: "/dashboard/organizations/\(organizationId)/flags")
-    }
-    
-    /// Export a feature flag to user's personal flags
-    @Sendable
-    private func exportFlag(req: Request) async throws -> Response {
-        // Get the authenticated user
-        let user = try req.auth.require(User.self)
-        
-        // Get the flag ID from the request parameters
-        guard let flagId = req.parameters.get("id", as: UUID.self) else {
-            throw ValidationError.failed("Invalid feature flag ID")
-        }
-        
-        // Export the flag
-        let featureFlagService = req.services.featureFlagService
-        let exportedFlag = try await featureFlagService.exportFlagToPersonal(
-            flagId: flagId,
-            userId: user.id!
-        )
-        
-        // Set success message as a flash message
-        req.session.data["success"] = "Feature flag '\(exportedFlag.key)' exported to your personal flags successfully"
-        
-        // Redirect to the dashboard
-        return req.redirect(to: "/dashboard")
     }
     
     /// Returns a plain HTML form without using Leaf templates

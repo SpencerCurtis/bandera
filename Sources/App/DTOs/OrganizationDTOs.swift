@@ -24,10 +24,12 @@ struct OrganizationDTO: Content {
     let name: String
     let createdAt: Date?
     let updatedAt: Date?
+    let isPersonal: Bool
     
-    init(id: UUID, name: String, createdAt: Date? = nil, updatedAt: Date? = nil) {
+    init(id: UUID, name: String, isPersonal: Bool = false, createdAt: Date? = nil, updatedAt: Date? = nil) {
         self.id = id
         self.name = name
+        self.isPersonal = isPersonal
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -35,6 +37,7 @@ struct OrganizationDTO: Content {
     init(from organization: Organization) {
         self.id = organization.id!
         self.name = organization.name
+        self.isPersonal = false // Organizations from the database are never personal
         self.createdAt = organization.createdAt
         self.updatedAt = organization.updatedAt
     }

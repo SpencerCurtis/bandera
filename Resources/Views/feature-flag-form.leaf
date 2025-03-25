@@ -60,7 +60,6 @@
                                 #for(org in organizations):
                                     <option value="#(org.id)">#(org.name) (#(org.role))</option>
                                 #endfor
-                            #endif
                         </select>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Select which organization this feature flag belongs to.</p>
                     </div>

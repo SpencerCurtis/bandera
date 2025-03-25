@@ -199,6 +199,7 @@ struct OrganizationService: OrganizationServiceProtocol {
         return OrganizationDTO(
             id: organization.id!,
             name: organization.name,
+            isPersonal: false,
             createdAt: organization.createdAt,
             updatedAt: organization.updatedAt
         )
