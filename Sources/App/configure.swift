@@ -167,4 +167,5 @@ public func configure(_ app: Application) async throws {
     try app.register(collection: OrganizationWebController())
     try app.register(collection: HealthController())
     try app.register(collection: ErrorController())
+    try app.register(collection: RoutesController())
 }

@@ -85,7 +85,7 @@
                     <h5 class="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Import to Organization</h5>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Import this personal flag to one of your organizations:</p>
                     
-                    #if(flag.organizations && count(flag.organizations) > 0):
+                    #if(flag.organizations && safeCount(flag.organizations) > 0):
                         <div class="space-y-2">
                             #for(org in flag.organizations):
                                 <form method="POST" action="/dashboard/feature-flags/#(flag.id)/import/#(org.id)" class="inline">

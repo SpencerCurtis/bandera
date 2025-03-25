@@ -4,7 +4,7 @@ import Vapor
 struct RoutesController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         // Protected routes require authentication and admin role
-        let protectedRoutes = routes.grouped(JWTAuthMiddleware.adminAPI)
+        let protectedRoutes = routes.grouped(JWTAuthMiddleware.admin)
         
         // Create a route for viewing all routes (admin only)
         protectedRoutes.get("routes", use: listRoutes)
@@ -24,10 +24,24 @@ struct RoutesController: RouteCollection {
         // Create route info objects
         var routeInfos: [RouteInfo] = []
         
+        // Create a set to track unique routes by method and path
+        var uniqueRoutes = Set<String>()
+        
         for route in routes {
             let path = route.path.map { "\($0)" }.joined(separator: "/")
             let method = route.method.rawValue
             let description = route.userInfo["description"] as? String ?? ""
+            
+            // Create a unique identifier for this route
+            let routeIdentifier = "\(method):\(path)"
+            
+            // Skip if we've already processed this route
+            if uniqueRoutes.contains(routeIdentifier) {
+                continue
+            }
+            
+            // Add to our unique routes tracker
+            uniqueRoutes.insert(routeIdentifier)
             
             // Determine the group based on the first path component
             let group: String

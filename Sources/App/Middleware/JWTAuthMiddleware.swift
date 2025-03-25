@@ -76,31 +76,33 @@ struct JWTAuthMiddleware: AsyncMiddleware {
             
             request.logger.debug("JWTAuthMiddleware: Authentication successful, continuing to next responder")
             return try await next.respond(to: request)
-        } catch let jwtError where jwtError is JWTKit.JWTError {
-            request.logger.warning("JWTAuthMiddleware: JWT verification failed with JWT error: \(jwtError)")
-            
-            // Clear the invalid token
-            let response = try await handleAuthFailure(request)
-            response.cookies["bandera-auth-token"] = .expired
-            request.logger.debug("JWTAuthMiddleware: Cleared invalid token cookie")
-            return response
         } catch {
+            // Always log the error
             request.logger.warning("JWTAuthMiddleware: JWT verification failed with error: \(error)")
             
-            // Clear the invalid token
-            let response = try await handleAuthFailure(request)
+            // Create a redirect response
+            let response = Response(status: .seeOther)
+            response.headers.replaceOrAdd(name: .location, value: "/auth/login?error=auth_failed")
+            
+            // Expire the auth cookie
             response.cookies["bandera-auth-token"] = .expired
-            request.logger.debug("JWTAuthMiddleware: Cleared invalid token cookie")
+            
             return response
         }
     }
     
+    /// Handles authentication failures when no token is present
     private func handleAuthFailure(_ request: Request) async throws -> Response {
         if shouldRedirect {
             // Store the current path to redirect back after login
             let currentPath = request.url.path
             request.logger.warning("JWTAuthMiddleware: Authentication failed, redirecting to login with returnTo=\(currentPath)")
-            return request.redirect(to: "/auth/login?returnTo=\(currentPath)")
+            
+            // Create the response and expire the cookie
+            let response = request.redirect(to: "/auth/login?returnTo=\(currentPath)")
+            response.cookies["bandera-auth-token"] = .expired
+            
+            return response
         } else {
             request.logger.debug("JWTAuthMiddleware: Throwing authentication required error")
             throw AuthenticationError.authenticationRequired
