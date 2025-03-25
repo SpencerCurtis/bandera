@@ -1,165 +1,176 @@
 #extend("layout"):
     #export("title", "Feature Flag Details")
     #export("content"):
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
-                <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                        Feature Flag Details
-                    </h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        #(flag.key)
-                    </p>
-                </div>
-                <div class="flex space-x-4">
-                    <a href="/dashboard/feature-flags/#(flag.id)/edit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Edit
-                    </a>
-                    <form method="POST" action="/dashboard/feature-flags/#(flag.id)/toggle" class="inline">
-                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white #if(flag.isEnabled): bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 #else: bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 #endif focus:outline-none focus:ring-2 focus:ring-offset-2 #if(flag.isEnabled): focus:ring-red-500 #else: focus:ring-green-500 #endif">
-                            #if(flag.isEnabled):
-                                Disable Flag
-                            #else:
-                                Enable Flag
-                            #endif
-                        </button>
-                    </form>
-                </div>
-            </div>
-            
-            <div class="border-t border-gray-200 dark:border-gray-700">
-                <dl>
-                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
-                            <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium #if(flag.isEnabled): bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 #else: bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 #endif">
+        <!-- Main grid container -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left column - Feature Flag Details -->
+            <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                            Feature Flag Details
+                        </h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            #(flag.key)
+                        </p>
+                    </div>
+                    <div class="flex space-x-4">
+                        <a href="/dashboard/feature-flags/#(flag.id)/edit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Edit
+                        </a>
+                        <form method="POST" action="/dashboard/feature-flags/#(flag.id)/toggle" class="inline">
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white #if(flag.isEnabled): bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 #else: bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 #endif focus:outline-none focus:ring-2 focus:ring-offset-2 #if(flag.isEnabled): focus:ring-red-500 #else: focus:ring-green-500 #endif">
                                 #if(flag.isEnabled):
-                                    Enabled
+                                    Disable Flag
                                 #else:
-                                    Disabled
+                                    Enable Flag
                                 #endif
-                            </span>
-                        </dd>
+                            </button>
+                        </form>
                     </div>
-                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Type</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.type)</dd>
-                    </div>
-                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Default Value</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.defaultValue)</dd>
-                    </div>
-                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Description</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.description)</dd>
-                    </div>
-                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
-                            #if(flag.createdAt):
-                                #date(flag.createdAt, "yyyy-MM-dd HH:mm:ss")
-                            #else:
-                                N/A
-                            #endif
-                        </dd>
-                    </div>
-                    <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
-                            #if(flag.updatedAt):
-                                #date(flag.updatedAt, "yyyy-MM-dd HH:mm:ss")
-                            #else:
-                                N/A
-                            #endif
-                        </dd>
-                    </div>
-                </dl>
-            </div>
-            
-            <!-- Import/Export Section -->
-            <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
-                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Flag Management</h4>
+                </div>
                 
-                <!-- If this is a personal flag (no organizationId), show the import options -->
-                #if(!flag.organizationId):
-                    <h5 class="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Import to Organization</h5>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Import this personal flag to one of your organizations:</p>
-                    
-                    #if(flag.organizations && safeCount(flag.organizations) > 0):
-                        <div class="space-y-2">
-                            #for(org in flag.organizations):
-                                <form method="POST" action="/dashboard/feature-flags/#(flag.id)/import/#(org.id)" class="inline">
-                                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                        Import to #(org.name)
-                                    </button>
-                                </form>
-                            #endfor
+                <div class="border-t border-gray-200 dark:border-gray-700">
+                    <dl>
+                        <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
+                            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
+                                <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium #if(flag.isEnabled): bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 #else: bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 #endif">
+                                    #if(flag.isEnabled):
+                                        Enabled
+                                    #else:
+                                        Disabled
+                                    #endif
+                                </span>
+                            </dd>
                         </div>
-                    #else:
-                        <p class="text-sm text-gray-500 dark:text-gray-400">You don't belong to any organizations.</p>
-                    #endif
-                #else:
-                    <!-- If this is an organization flag, show export option -->
-                    <h5 class="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Export to Personal Flags</h5>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Export this organization flag to your personal flags:</p>
-                    
-                    <form method="POST" action="/dashboard/feature-flags/#(flag.id)/export" class="inline">
-                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                            Export to Personal Flags
-                        </button>
-                    </form>
-                #endif
-            </div>
-
-            <!-- User Overrides Section -->
-            <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
-                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">User Overrides</h4>
-                #if(flag.userOverrides):
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-900">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Value</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Updated</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                #for(override in flag.userOverrides):
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.user.email)</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.value)</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                                            #if(override.updatedAt):
-                                                #date(override.updatedAt, "yyyy-MM-dd HH:mm:ss")
-                                            #else:
-                                                N/A
-                                            #endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <form method="POST" action="/dashboard/feature-flags/#(flag.id)/overrides/#(override.id)/delete" class="inline">
-                                                <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Remove</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                #endfor
-                            </tbody>
-                        </table>
-                    </div>
-                #else:
-                    <p class="text-sm text-gray-500 dark:text-gray-400">No user overrides configured.</p>
-                #endif
-
-                <div class="mt-6">
-                    <a href="/dashboard/feature-flags/#(flag.id)/overrides/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Add User Override
-                    </a>
+                        <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Type</dt>
+                            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.type)</dd>
+                        </div>
+                        <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Default Value</dt>
+                            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.defaultValue)</dd>
+                        </div>
+                        <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Description</dt>
+                            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">#(flag.description)</dd>
+                        </div>
+                        <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</dt>
+                            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
+                                #if(flag.createdAt):
+                                    #date(flag.createdAt, "yyyy-MM-dd HH:mm:ss")
+                                #else:
+                                    N/A
+                                #endif
+                            </dd>
+                        </div>
+                        <div class="px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
+                            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-300 sm:mt-0 sm:col-span-2">
+                                #if(flag.updatedAt):
+                                    #date(flag.updatedAt, "yyyy-MM-dd HH:mm:ss")
+                                #else:
+                                    N/A
+                                #endif
+                            </dd>
+                        </div>
+                    </dl>
                 </div>
             </div>
 
-            <!-- Audit Log Section -->
-            <div class="px-4 py-5 sm:px-6 border-t border-gray-200 dark:border-gray-700">
+            <!-- Right column - Flag Management and User Overrides -->
+            <div class="space-y-6">
+                <!-- Flag Management Section -->
+                <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+                    <div class="px-4 py-5 sm:px-6">
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Flag Management</h4>
+                        
+                        #if(!flag.organizationId):
+                            <h5 class="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Import to Organization</h5>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Import this personal flag to one of your organizations:</p>
+                            
+                            #if(flag.organizations):
+                                <div class="space-y-2">
+                                    #for(org in flag.organizations):
+                                        <form method="POST" action="/dashboard/feature-flags/#(flag.id)/import/#(org.id)" class="inline">
+                                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                                Import to #(org.name)
+                                            </button>
+                                        </form>
+                                    #endfor
+                                </div>
+                            #else:
+                                <p class="text-sm text-gray-500 dark:text-gray-400">You don't belong to any organizations.</p>
+                            #endif
+                        #else:
+                            <h5 class="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Export to Personal Flags</h5>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Export this organization flag to your personal flags:</p>
+                            
+                            <form method="POST" action="/dashboard/feature-flags/#(flag.id)/export" class="inline">
+                                <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    Export to Personal Flags
+                                </button>
+                            </form>
+                        #endif
+                    </div>
+                </div>
+
+                <!-- User Overrides Section -->
+                <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+                    <div class="px-4 py-5 sm:px-6">
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">User Overrides</h4>
+                        #if(flag.userOverrides):
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-900">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Value</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Updated</th>
+                                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        #for(override in flag.userOverrides):
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.user.email)</td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">#(override.value)</td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                                                    #if(override.updatedAt):
+                                                        #date(override.updatedAt, "yyyy-MM-dd HH:mm:ss")
+                                                    #else:
+                                                        N/A
+                                                    #endif
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <form method="POST" action="/dashboard/feature-flags/#(flag.id)/overrides/#(override.id)/delete" class="inline">
+                                                        <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Remove</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        #endfor
+                                    </tbody>
+                                </table>
+                            </div>
+                        #else:
+                            <p class="text-sm text-gray-500 dark:text-gray-400">No user overrides configured.</p>
+                        #endif
+
+                        <div class="mt-6">
+                            <a href="/dashboard/feature-flags/#(flag.id)/overrides/new" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Add User Override
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom section - Audit Log -->
+        <div class="mt-6 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
                 <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Audit Log</h4>
                 #if(flag.auditLogs):
                     <div class="flow-root">

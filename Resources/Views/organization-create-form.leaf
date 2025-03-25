@@ -1,4 +1,4 @@
-#extend("layout")
+#extend("layout"):
 #export("title", "Create Organization")
 #export("content"):
     <div class="py-6">
@@ -54,4 +54,5 @@
             </div>
         </div>
     </div>
-#endexport 
+#endexport
+#endextend 

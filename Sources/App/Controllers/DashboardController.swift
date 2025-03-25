@@ -81,6 +81,7 @@ struct DashboardController: RouteCollection {
             title: "Dashboard",
             isAuthenticated: true,
             isAdmin: payload.isAdmin,
+            user: try await User.find(userId, on: req.db),
             environment: "development",
             uptime: "N/A",
             databaseConnected: true,

@@ -60,6 +60,7 @@ struct OrganizationWebController: RouteCollection {
             title: "Organizations",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
+            user: user,
             environment: "development",
             uptime: "N/A",
             databaseConnected: true,
@@ -89,7 +90,7 @@ struct OrganizationWebController: RouteCollection {
                 user: user
             )
             
-            return try await req.view.render("simple-org-form", context)
+            return try await req.view.render("organization-create-form", context)
         } catch {
             // Detailed error logging to help diagnose the issue
             req.logger.error("Error rendering organization form: \(error)")

@@ -24,7 +24,7 @@
                         </div>
                         
                         <div class="border-t border-gray-200 dark:border-gray-700">
-                            #if(safeCount(flags) > 0):
+                            #if(flags):
                                 <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                                     #for(flag in flags):
                                         <li>
@@ -84,7 +84,7 @@
                         </div>
                         
                         <div class="border-t border-gray-200 dark:border-gray-700">
-                            #if(safeCount(organizations) > 0):
+                            #if(organizations):
                                 <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                                     #for(org in organizations):
                                         <li>

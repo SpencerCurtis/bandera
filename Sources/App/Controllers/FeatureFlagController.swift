@@ -63,6 +63,7 @@ struct FeatureFlagController: RouteCollection {
             title: "Create Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
+            user: user,
             organizations: organizations
         )
         
@@ -89,6 +90,7 @@ struct FeatureFlagController: RouteCollection {
             title: "Create Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
+            user: user,
             organizations: organizations
         )
         
@@ -579,6 +581,7 @@ struct FeatureFlagController: RouteCollection {
             title: "Create Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
+            user: user,
             organizations: organizations
         )
         

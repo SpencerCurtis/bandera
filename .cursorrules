@@ -81,7 +81,16 @@ rule "Follow testing best practices" {
 rule "Maintain consistent view template structure" {
   description = "Follow patterns for Leaf templates"
   patterns = [
-    "Use #extend(\"layout\") for page templates",
+    "Use #extend(\"layout\"): with a colon when extending layout",
+    "Use #export(\"title\", \"My Title\") for inline exports",
+    "Use #export(\"content\"): for block content exports",
+    "Only use #export within extend blocks, never #set",
+    "Always close block exports with #endexport",
+    "Always close extends with #endextend",
+    "Use #if(condition): for conditionals with #endif",
+    "Use #for(item in items): for loops with #endfor",
+    "Use #(variableName) for variable interpolation",
+    "Keep template hierarchy consistent with layout.leaf as base",
     "Place page-specific CSS in a dedicated section",
     "Use consistent naming for template variables",
     "Follow BEM naming convention for CSS classes",
@@ -181,16 +190,16 @@ rule "Follow Vapor framework patterns" {
 rule "Follow Leaf template patterns" {
   description = "Maintain consistent Leaf template structure and usage"
   patterns = [
-    "Use #extend(\"layout\") for template inheritance",
-    "Use #export(\"content\") for page content",
-    "Use ViewContext for passing data to templates",
-    "Use #if/#else/#endif for conditional rendering",
-    "Use #for loops for iterating over collections",
-    "Use partials for reusable components",
-    "Use consistent variable naming in templates",
-    "Use Tailwind CSS for styling",
-    "Use dark mode support in templates",
-    "Use responsive design patterns"
+    "Use #extend(\"layout\"): with a colon when extending layout",
+    "Use #export(\"title\", \"My Title\") for inline exports",
+    "Use #export(\"content\"): for block content exports",
+    "Only use #export within extend blocks, never #set",
+    "Always close block exports with #endexport",
+    "Always close extends with #endextend",
+    "Use #if(condition): for conditionals with #endif",
+    "Use #for(item in items): for loops with #endfor",
+    "Use #(variableName) for variable interpolation",
+    "Keep template hierarchy consistent with layout.leaf as base"
   ]
 }
 
