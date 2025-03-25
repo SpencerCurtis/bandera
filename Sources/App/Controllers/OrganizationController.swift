@@ -4,21 +4,20 @@ import Vapor
 /// Controller for organization-related endpoints
 struct OrganizationController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
+        // API routes should use JWTAuthMiddleware.api which throws instead of redirecting
         let organizations = routes.grouped("api", "organizations")
-        let protectedOrganizations = organizations.grouped(User.sessionAuthMiddleware())
-        
-        // Public endpoints
+            .grouped(JWTAuthMiddleware.api)
         
         // Protected endpoints
-        protectedOrganizations.post(use: create)
-        protectedOrganizations.get(use: getUserOrganizations)
-        protectedOrganizations.get(":organizationId", use: getOrganization)
-        protectedOrganizations.put(":organizationId", use: updateOrganization)
-        protectedOrganizations.delete(":organizationId", use: deleteOrganization)
+        organizations.post(use: create)
+        organizations.get(use: getUserOrganizations)
+        organizations.get(":organizationId", use: getOrganization)
+        organizations.put(":organizationId", use: updateOrganization)
+        organizations.delete(":organizationId", use: deleteOrganization)
         
-        protectedOrganizations.get(":organizationId", "members", use: getMembers)
-        protectedOrganizations.post(":organizationId", "members", use: addMember)
-        protectedOrganizations.delete(":organizationId", "members", ":userId", use: removeMember)
+        organizations.get(":organizationId", "members", use: getMembers)
+        organizations.post(":organizationId", "members", use: addMember)
+        organizations.delete(":organizationId", "members", ":userId", use: removeMember)
     }
     
     /// Create a new organization

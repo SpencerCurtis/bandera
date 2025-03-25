@@ -12,6 +12,8 @@ struct FeatureFlagController: RouteCollection {
         routes.get(use: index)
         routes.get(":id", use: detail)
         routes.get("create", use: createForm)
+        routes.get("plain", use: plainForm)
+        routes.get("plain-form", use: plainCreateForm)
         routes.post("create", use: create)
         routes.get(":id", "edit", use: editForm)
         routes.post(":id", "edit", use: update)
@@ -33,16 +35,64 @@ struct FeatureFlagController: RouteCollection {
     /// Renders the create feature flag form
     @Sendable
     func createForm(req: Request) async throws -> View {
-        // Get the authenticated user
-        let user = try req.auth.require(User.self)
+        // Get the authenticated user from the session
+        guard let userIdString = req.session.data["user_id"],
+              let userId = UUID(userIdString) else {
+            throw AuthenticationError.authenticationRequired
+        }
         
-        // Create view context
+        // Log the user ID we're using
+        req.logger.info("Creating feature flag form for user ID: \(userId)")
+        
+        // Get the user from the database
+        guard let user = try await User.find(userId, on: req.db) else {
+            throw AuthenticationError.authenticationRequired
+        }
+        
+        // Use the standard service approach to get organizations
+        let organizations = try await req.services.organizationService.getForUser(userId: userId)
+        
+        // Log the organizations for debugging
+        req.logger.info("Found \(organizations.count) organizations for user \(userId)")
+        for org in organizations {
+            req.logger.info("Organization: \(org.id) - \(org.name) (Role: \(org.role))")
+        }
+        
+        // Create context for the view
         let context = ViewContext(
             title: "Create Feature Flag",
             isAuthenticated: true,
-            isAdmin: user.isAdmin
+            isAdmin: user.isAdmin,
+            organizations: organizations
         )
         
+        return try await req.view.render("feature-flag-form", context)
+    }
+    
+    /// Plain HTML form that bypasses JWT verification issues
+    @Sendable
+    func plainCreateForm(req: Request) async throws -> View {
+        // Get the authenticated user 
+        let user = try req.auth.require(User.self)
+        
+        // Get the user's organizations
+        let organizations = (try? await req.services.organizationService.getForUser(userId: user.id!)) ?? []
+        
+        // Log the organizations for debugging
+        req.logger.info("Found \(organizations.count) organizations for plainCreateForm")
+        for org in organizations {
+            req.logger.info("Organization: \(org.id) - \(org.name) (Role: \(org.role))")
+        }
+        
+        // Create context for the view with explicit organizations array
+        let context = ViewContext(
+            title: "Create Feature Flag",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            organizations: organizations
+        )
+        
+        // Render the feature-flag-form template
         return try await req.view.render("feature-flag-form", context)
     }
     
@@ -104,6 +154,17 @@ struct FeatureFlagController: RouteCollection {
         guard let payload = req.auth.get(UserJWTPayload.self),
               let userId = UUID(payload.subject.value) else {
             throw AuthenticationError.authenticationRequired
+        }
+        
+        // Validate that an organization is selected
+        guard let organizationId = create.organizationId else {
+            throw ValidationError.failed("You must select an organization")
+        }
+        
+        // Check if the user is a member of the organization
+        let organizationRepository = try req.organizationRepository()
+        if !(try await organizationRepository.isMember(userId: userId, organizationId: organizationId)) {
+            throw AuthorizationError.notAuthorized(reason: "You are not a member of this organization")
         }
         
         // Use the feature flag service to create the flag
@@ -493,5 +554,35 @@ struct FeatureFlagController: RouteCollection {
         
         // Redirect to the dashboard
         return req.redirect(to: "/dashboard")
+    }
+    
+    /// Returns a plain HTML form without using Leaf templates
+    @Sendable
+    func plainForm(req: Request) async throws -> View {
+        // Log that we're using plain form
+        req.logger.info("Using plainForm route that now uses Leaf template rendering")
+        
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get organizations using the service
+        let organizations = try await req.services.organizationService.getForUser(userId: user.id!)
+        
+        // Log the organizations for debugging
+        req.logger.info("Found \(organizations.count) organizations for plainForm")
+        for org in organizations {
+            req.logger.info("Organization: \(org.id) - \(org.name) (Role: \(org.role))")
+        }
+        
+        // Create context for the view
+        let context = ViewContext(
+            title: "Create Feature Flag",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            organizations: organizations
+        )
+        
+        // Render the feature-flag-form template
+        return try await req.view.render("feature-flag-form", context)
     }
 }

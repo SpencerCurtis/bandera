@@ -4,43 +4,45 @@ import Vapor
 /// Controller for organization-related web endpoints
 struct OrganizationWebController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        let organizations = routes.grouped("dashboard", "organizations")
-        let protected = organizations.grouped(User.sessionAuthMiddleware())
+        // Since this controller is registered in configure.swift directly on the app,
+        // we need to specify the full path and add JWTAuthMiddleware
+        let basePath = routes.grouped("dashboard").grouped(JWTAuthMiddleware.standard)
+        let organizations = basePath.grouped("organizations")
         
         // Organization listing
-        protected.get(use: index)
+        organizations.get(use: index)
         
         // Create organization
-        protected.get("create", use: createForm)
-        protected.post("create", use: create)
+        organizations.get("create", use: createForm)
+        organizations.post("create", use: create)
         
         // Organization detail
-        protected.get(":organizationId", use: show)
+        organizations.get(":organizationId", use: show)
         
         // Edit organization
-        protected.get(":organizationId", "edit", use: editForm)
-        protected.post(":organizationId", "edit", use: update)
+        organizations.get(":organizationId", "edit", use: editForm)
+        organizations.post(":organizationId", "edit", use: update)
         
         // Delete organization
-        protected.post(":organizationId", "delete", use: delete)
+        organizations.post(":organizationId", "delete", use: delete)
         
         // Member management
-        protected.post(":organizationId", "members", use: addMember)
-        protected.post(":organizationId", "members", ":userId", "remove", use: removeMember)
-        protected.post(":organizationId", "members", ":userId", "role", use: updateMemberRole)
+        organizations.post(":organizationId", "members", use: addMember)
+        organizations.post(":organizationId", "members", ":userId", "remove", use: removeMember)
+        organizations.post(":organizationId", "members", ":userId", "role", use: updateMemberRole)
         
         // Feature flag management
-        protected.get(":organizationId", "flags", use: flagIndex)
-        protected.get(":organizationId", "flags", "create", use: createFlagForm)
-        protected.post(":organizationId", "flags", "create", use: createFlag)
-        protected.get(":organizationId", "flags", ":flagId", use: showFlag)
-        protected.get(":organizationId", "flags", ":flagId", "edit", use: editFlagForm)
-        protected.post(":organizationId", "flags", ":flagId", "edit", use: updateFlag)
-        protected.post(":organizationId", "flags", ":flagId", "delete", use: deleteFlag)
+        organizations.get(":organizationId", "flags", use: flagIndex)
+        organizations.get(":organizationId", "flags", "create", use: createFlagForm)
+        organizations.post(":organizationId", "flags", "create", use: createFlag)
+        organizations.get(":organizationId", "flags", ":flagId", use: showFlag)
+        organizations.get(":organizationId", "flags", ":flagId", "edit", use: editFlagForm)
+        organizations.post(":organizationId", "flags", ":flagId", "edit", use: updateFlag)
+        organizations.post(":organizationId", "flags", ":flagId", "delete", use: deleteFlag)
         
         // Feature flag overrides
-        protected.post(":organizationId", "flags", ":flagId", "overrides", use: addOverride)
-        protected.post(":organizationId", "flags", ":flagId", "overrides", ":overrideId", "delete", use: deleteOverride)
+        organizations.post(":organizationId", "flags", ":flagId", "overrides", use: addOverride)
+        organizations.post(":organizationId", "flags", ":flagId", "overrides", ":overrideId", "delete", use: deleteOverride)
     }
     
     // MARK: - Organization Management
@@ -79,18 +81,15 @@ struct OrganizationWebController: RouteCollection {
             
             req.logger.info("Rendering organization creation form for user \(user.email) with ID \(user.id?.uuidString ?? "unknown")")
             
-            // Create a full context with all required variables
+            // Create a proper context directly with the ViewContext initializer
             let context = ViewContext(
                 title: "Create Organization",
                 isAuthenticated: true,
-                isAdmin: user.isAdmin, // Properly set admin status
-                user: user,
-                environment: Environment.get("ENVIRONMENT") ?? "development",
-                editing: false // Explicitly set editing to false for the create form
+                isAdmin: user.isAdmin,
+                user: user
             )
             
-            // Use the simplified leaf template
-            return try await req.view.render("organization-create-simple", context)
+            return try await req.view.render("simple-org-form", context)
         } catch {
             // Detailed error logging to help diagnose the issue
             req.logger.error("Error rendering organization form: \(error)")
@@ -121,9 +120,33 @@ struct OrganizationWebController: RouteCollection {
             // Parse form data
             let formData = try req.content.decode(CreateOrganizationRequest.self)
             
+            // Add detailed logging
+            req.logger.info("Creating organization '\(formData.name)' for user \(user.email) with ID \(user.id?.uuidString ?? "unknown")")
+            
             // Create the organization
             let organizationService = try req.organizationService()
             let organization = try await organizationService.create(formData, creatorId: user.id!)
+            
+            // Add more detailed logging about the created organization
+            req.logger.info("Organization created with ID: \(organization.id?.uuidString ?? "unknown"), name: \(organization.name)")
+            
+            // Verify the user-organization relationship was created correctly
+            let organizationRepository = try req.organizationRepository()
+            let memberships = try await organizationRepository.getMembershipsForUser(userId: user.id!)
+            
+            req.logger.info("User has \(memberships.count) organization memberships after creation")
+            for membership in memberships {
+                req.logger.info("Membership: orgId=\(membership.$organization.id), role=\(membership.role)")
+                
+                // Verify this membership includes our new organization
+                if membership.$organization.id == organization.id {
+                    req.logger.info("Found membership for newly created organization with role: \(membership.role)")
+                }
+            }
+            
+            // Also verify by checking if user is a member of the organization
+            let isMember = try await organizationRepository.isMember(userId: user.id!, organizationId: organization.id!)
+            req.logger.info("User is member of organization: \(isMember)")
             
             // Redirect to the organization detail page
             return req.redirect(to: "/dashboard/organizations/\(organization.id!)")
