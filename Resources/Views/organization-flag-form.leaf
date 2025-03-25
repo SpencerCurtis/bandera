@@ -2,11 +2,19 @@
     #export("content"):
         <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             <div class="flex items-center mb-4">
-                <a href="/dashboard/organizations/#(organization.id)/flags" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                    </svg>
-                </a>
+                #if(organization):
+                    <a href="/dashboard/organizations/#(organization.id)/flags" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                #else:
+                    <a href="/dashboard" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                #endif
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
                     #if(editing):
                         Edit Feature Flag
@@ -20,26 +28,26 @@
                 <div class="px-4 py-5 sm:px-6">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
                         #if(editing):
-                            Edit Feature Flag for #(organization.name)
+                            Edit Feature Flag #if(organization):for #(organization.name)#endif
                         #else:
-                            Create Feature Flag for #(organization.name)
+                            Create Feature Flag #if(organization):for #(organization.name)#endif
                         #endif
                     </h3>
                     <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
                         #if(editing):
                             Update the details of this feature flag.
                         #else:
-                            Define a new feature flag for your organization.
+                            Define a new feature flag #if(organization):for your organization#else:for your personal use#endif.
                         #endif
                     </p>
                 </div>
                 <div class="border-t border-gray-200 dark:border-gray-700 p-6">
-                    <form action="#if(editing):/dashboard/organizations/#(organization.id)/flags/#(flag.id)/edit#else:/dashboard/organizations/#(organization.id)/flags/create#endif" method="POST">
+                    <form action="#if(editing):#if(organization):/dashboard/organizations/#(organization.id)/flags/#(flag.id)/edit#else:/dashboard/feature-flags/#(flag.id)/edit#endif#else:#if(organization):/dashboard/organizations/#(organization.id)/flags/create#else:/dashboard/feature-flags/create#endif#endif" method="POST">
                         <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                             <div class="sm:col-span-3">
                                 <label for="key" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Key</label>
                                 <div class="mt-1">
-                                    <input type="text" name="key" id="key" #if(editing):value="#(flag.key)"#endif required class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md" placeholder="my-feature-flag">
+                                    <input type="text" name="key" id="key" #if(editing):value="#(flag.key)"#endif required class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md placeholder:pl-2" placeholder="my-feature-flag">
                                 </div>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">A unique identifier for your feature flag.</p>
                             </div>
@@ -60,7 +68,7 @@
                             <div class="sm:col-span-6">
                                 <label for="defaultValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Default Value</label>
                                 <div class="mt-1">
-                                    <input type="text" name="defaultValue" id="defaultValue" #if(editing):value="#(flag.defaultValue)"#endif required class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md" placeholder="true">
+                                    <input type="text" name="defaultValue" id="defaultValue" #if(editing):value="#(flag.defaultValue)"#endif required class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md placeholder:pl-2" placeholder="true">
                                 </div>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">The default value for your feature flag when no overrides are present.</p>
                             </div>
@@ -68,14 +76,31 @@
                             <div class="sm:col-span-6">
                                 <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
                                 <div class="mt-1">
-                                    <textarea id="description" name="description" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md">#if(editing):#(flag.description)#endif</textarea>
+                                    <textarea id="description" name="description" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md placeholder:pl-2" placeholder="Describe what this feature flag controls...">#if(editing):#(flag.description)#endif</textarea>
                                 </div>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">A description of what this feature flag controls.</p>
                             </div>
+
+                            #if(!editing && !organization):
+                            <div class="sm:col-span-6">
+                                <label for="organizationId" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Organization (Optional)</label>
+                                <div class="mt-1">
+                                    <select id="organizationId" name="organizationId" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md">
+                                        <option value="">Personal Flag</option>
+                                        #if(organizations):
+                                            #for(org in organizations):
+                                                <option value="#(org.id)">#(org.name) (#(org.role))</option>
+                                            #endfor
+                                        #endif
+                                    </select>
+                                </div>
+                                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Choose an organization or leave as personal flag.</p>
+                            </div>
+                            #endif
                         </div>
                         
                         <div class="mt-6 flex justify-end">
-                            <a href="/dashboard/organizations/#(organization.id)/flags" class="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <a href="#if(organization):/dashboard/organizations/#(organization.id)/flags#else:/dashboard#endif" class="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                 Cancel
                             </a>
                             <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">

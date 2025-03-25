@@ -131,7 +131,7 @@ struct DashboardController: RouteCollection {
         )
         
         // Render the feature flag form template
-        return try await req.view.render("feature-flag-form", formContext)
+        return try await req.view.render("organization-flag-form", formContext)
     }
     
     @Sendable
@@ -179,7 +179,7 @@ struct DashboardController: RouteCollection {
         )
         
         // Render the feature flag form template
-        return try await req.view.render("feature-flag-form", formContext)
+        return try await req.view.render("organization-flag-form", formContext)
     }
     
     // MARK: - Form Handlers
@@ -250,7 +250,7 @@ struct DashboardController: RouteCollection {
             )
             
             // Render the form with the error and flag data
-            return try await req.view.render("feature-flag-form", formContext).encodeResponse(for: req)
+            return try await req.view.render("organization-flag-form", formContext).encodeResponse(for: req)
         }
     }
     
@@ -326,7 +326,7 @@ struct DashboardController: RouteCollection {
             )
             
             // Render the form with the error and flag data
-            return try await req.view.render("feature-flag-form", formContext).encodeResponse(for: req)
+            return try await req.view.render("organization-flag-form", formContext).encodeResponse(for: req)
         }
     }
     

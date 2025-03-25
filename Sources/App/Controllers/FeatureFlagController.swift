@@ -11,9 +11,7 @@ struct FeatureFlagController: RouteCollection {
         // Base routes
         routes.get(use: index)
         routes.get(":id", use: detail)
-        routes.get("create", use: createForm)
-        routes.get("plain", use: plainForm)
-        routes.get("plain-form", use: plainCreateForm)
+        routes.get("create", use: plainCreateForm)
         routes.post("create", use: create)
         routes.get(":id", "edit", use: editForm)
         routes.post(":id", "edit", use: update)
@@ -63,10 +61,11 @@ struct FeatureFlagController: RouteCollection {
             isAuthenticated: true,
             isAdmin: user.isAdmin,
             user: user,
-            organizations: organizations
+            organizations: organizations,
+            editing: false
         )
         
-        return try await req.view.render("feature-flag-form", context)
+        return try await req.view.render("organization-flag-form", context)
     }
     
     /// Plain HTML form that bypasses JWT verification issues
@@ -78,23 +77,18 @@ struct FeatureFlagController: RouteCollection {
         // Get the user's organizations
         let organizations = (try? await req.services.organizationService.getForUser(userId: user.id!)) ?? []
         
-        // Log the organizations for debugging
-        req.logger.info("Found \(organizations.count) organizations for plainCreateForm")
-        for org in organizations {
-            req.logger.info("Organization: \(org.id) - \(org.name) (Role: \(org.role))")
-        }
-        
         // Create context for the view with explicit organizations array
         let context = ViewContext(
             title: "Create Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
             user: user,
-            organizations: organizations
+            organizations: organizations,
+            editing: false
         )
         
-        // Render the feature-flag-form template
-        return try await req.view.render("feature-flag-form", context)
+        // Render the organization flag form template
+        return try await req.view.render("organization-flag-form", context)
     }
     
     /// Index page for feature flags
@@ -136,10 +130,11 @@ struct FeatureFlagController: RouteCollection {
             title: "Edit Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            flag: flag
+            flag: flag,
+            editing: true
         )
         
-        return try await req.view.render("feature-flag-form", context)
+        return try await req.view.render("organization-flag-form", context)
     }
     
     // MARK: - User Routes
@@ -564,10 +559,11 @@ struct FeatureFlagController: RouteCollection {
             isAuthenticated: true,
             isAdmin: user.isAdmin,
             user: user,
-            organizations: organizations
+            organizations: organizations,
+            editing: false
         )
         
-        // Render the feature-flag-form template
-        return try await req.view.render("feature-flag-form", context)
+        // Render the organization-flag-form template
+        return try await req.view.render("organization-flag-form", context)
     }
 }
