@@ -50,6 +50,20 @@
                             placeholder="Enables the new feature">#(flag.description)</textarea>
                     </div>
                     
+                    #if(!flag.id):
+                    <div>
+                        <label for="organizationId" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Organization</label>
+                        <select name="organizationId" id="organizationId" required
+                            class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white">
+                            <option value="">Select an organization</option>
+                            #for(org in organizations):
+                                <option value="#(org.id)">#(org.name) (#(org.role))</option>
+                            #endfor
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Select which organization this feature flag belongs to.</p>
+                    </div>
+                    #endif
+                    
                     <div class="flex justify-between">
                         <a href="/dashboard" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Cancel

@@ -23,15 +23,15 @@
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-red-800">
-                                #if(error):
-                                    #(error)
+                                #if(errorMessage):
+                                    #(errorMessage)
                                 #else:
                                     An error occurred
                                 #endif
                             </h3>
-                            #if(recoverySuggestion):
+                            #if(warningMessage):
                                 <div class="mt-2 text-sm text-red-700">
-                                    #(recoverySuggestion)
+                                    #(warningMessage)
                                 </div>
                             #endif
                         </div>
@@ -50,9 +50,28 @@
                     </div>
                 #endif
                 
-                <div class="mt-8">
-                    <a href="/" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Return to Home
+                <div class="mt-8 flex flex-col space-y-3">
+                    <!-- Back button -->
+                    #if(returnTo):
+                        <button onclick="javascript:history.back()" class="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Go Back
+                        </button>
+                    #endif
+                    
+                    <!-- Home button - redirect based on auth status -->
+                    #if(isAuthenticated):
+                        <a href="/dashboard" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Return to Dashboard
+                        </a>
+                    #else:
+                        <a href="/auth/login" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Return to Login
+                        </a>
+                    #endif
+                    
+                    <!-- Login button -->
+                    <a href="/auth/login" class="group relative w-full flex justify-center py-2 px-4 border border-indigo-600 text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Sign In Again
                     </a>
                 </div>
             </div>
