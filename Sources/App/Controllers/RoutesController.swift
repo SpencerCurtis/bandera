@@ -3,11 +3,9 @@ import Vapor
 /// Controller for displaying all available routes in the application
 struct RoutesController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Protected routes require authentication and admin role
-        let protectedRoutes = routes.grouped(JWTAuthMiddleware.admin)
-        
         // Create a route for viewing all routes (admin only)
-        protectedRoutes.get("routes", use: listRoutes)
+        let adminRoutes = routes.grouped(JWTAuthMiddleware.admin)
+        adminRoutes.get("routes", use: listRoutes)
     }
     
     /// Handler for displaying all available routes

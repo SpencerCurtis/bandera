@@ -25,24 +25,9 @@ func routes(_ app: Application) throws {
     let dashboard = app.grouped(["dashboard"])
         .grouped(JWTAuthMiddleware.standard)
     
-    // Dashboard home route
-    dashboard.get { req async throws -> View in
-        // Get the authenticated user
-        let user = try req.auth.require(User.self)
-        
-        // Get all flags for the user
-        let flags = try await req.services.featureFlagService.getAllFlags(userId: user.id!)
-        
-        // Create view context
-        let context = ViewContext(
-            title: "Dashboard",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            flags: flags
-        )
-        
-        return try await req.view.render("dashboard", context)
-    }
+    // Register the dashboard controller
+    let dashboardController = DashboardController()
+    try dashboard.register(collection: dashboardController)
     
     // Feature flag routes under dashboard/feature-flags
     let featureFlagController = FeatureFlagController()
@@ -62,6 +47,10 @@ func routes(_ app: Application) throws {
     let webSocketController = WebSocketController()
     try app.grouped(JWTAuthMiddleware.api)
         .register(collection: webSocketController)
+    
+    // Routes controller for admin-only routes
+    let routesController = RoutesController()
+    try app.register(collection: routesController)
     
     // Error test routes (only in development)
     if app.environment == .development {
