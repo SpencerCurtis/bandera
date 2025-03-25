@@ -38,7 +38,7 @@ struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Decode subject normally
+        // Decode subject and isAdmin normally
         self.subject = try container.decode(SubjectClaim.self, forKey: .subject)
         self.isAdmin = try container.decode(Bool.self, forKey: .isAdmin)
         
@@ -55,6 +55,14 @@ struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
                 self.expiration = ExpirationClaim(value: Date().addingTimeInterval(86400)) // 1 day
             }
         }
+    }
+    
+    // Add encode method to conform to Encodable
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(subject, forKey: .subject)
+        try container.encode(expiration, forKey: .expiration)
+        try container.encode(isAdmin, forKey: .isAdmin)
     }
     
     func verify(using signer: JWTSigner) throws {

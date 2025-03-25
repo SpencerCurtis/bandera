@@ -51,6 +51,10 @@ struct ViewContext: Content {
     // Pagination
     var pagination: Pagination?
     
+    // Simple orgs for feature flag form
+    var simpleOrgs: [[String: String]]?
+    
+    // Initialize with default values
     init(
         title: String,
         isAuthenticated: Bool = false,
@@ -80,7 +84,8 @@ struct ViewContext: Content {
         organization: OrganizationDTO? = nil,
         members: [OrganizationMemberDTO]? = nil,
         editing: Bool? = nil,
-        pagination: Pagination? = nil
+        pagination: Pagination? = nil,
+        simpleOrgs: [[String: String]]? = nil
     ) {
         self.title = title
         self.isAuthenticated = isAuthenticated
@@ -111,6 +116,7 @@ struct ViewContext: Content {
         self.members = members
         self.editing = editing
         self.pagination = pagination
+        self.simpleOrgs = simpleOrgs
     }
 }
 

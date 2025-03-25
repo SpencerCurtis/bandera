@@ -9,6 +9,7 @@ struct CreateFeatureFlagRequest: Content, Validatable {
     let type: FeatureFlagType
     let defaultValue: String
     let description: String?
+    let organizationId: UUID?
     
     /// Validation rules for creating a feature flag.
     static func validations(_ validations: inout Validations) {

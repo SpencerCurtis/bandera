@@ -138,9 +138,18 @@ struct OrganizationRepository: OrganizationRepositoryProtocol {
     
     /// Get all memberships for a user
     func getMembershipsForUser(userId: UUID) async throws -> [OrganizationUser] {
-        return try await OrganizationUser.query(on: db)
+        print("OrganizationRepository.getMembershipsForUser: Searching for memberships for userId: \(userId)")
+        
+        let memberships = try await OrganizationUser.query(on: db)
             .filter(\.$user.$id == userId)
             .all()
+        
+        print("OrganizationRepository.getMembershipsForUser: Found \(memberships.count) memberships")
+        for membership in memberships {
+            print("OrganizationRepository.getMembershipsForUser: Membership: id=\(membership.id?.uuidString ?? "nil"), orgId=\(membership.$organization.id), userId=\(membership.$user.id)")
+        }
+        
+        return memberships
     }
     
     /// Get all memberships for an organization

@@ -90,13 +90,28 @@ struct OrganizationService: OrganizationServiceProtocol {
     }
     
     func getForUser(userId: UUID) async throws -> [OrganizationWithRoleDTO] {
+        // Debug logging
+        print("Getting organizations for user ID: \(userId)")
+        
         // Get all memberships for the user
         let memberships = try await organizationRepository.getMembershipsForUser(userId: userId)
+        
+        // More debug logging
+        print("Found \(memberships.count) memberships for user \(userId)")
+        for membership in memberships {
+            print("Organization membership: orgId=\(membership.$organization.id), role=\(membership.role)")
+        }
         
         // Convert to DTOs with role information
         let organizations = try await memberships.asyncMap { membership in
             let organization = try await get(id: membership.$organization.id)
             return OrganizationWithRoleDTO(organization: organization, role: membership.role)
+        }
+        
+        // Final debug logging
+        print("Returning \(organizations.count) organizations for user \(userId)")
+        for org in organizations {
+            print("Organization DTO: id=\(org.id), name=\(org.name), role=\(org.role)")
         }
         
         return organizations

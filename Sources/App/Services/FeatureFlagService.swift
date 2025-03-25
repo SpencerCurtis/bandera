@@ -84,13 +84,20 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
     /// - Throws: ResourceError if the flag cannot be created
     func createFlag(_ dto: CreateFeatureFlagRequest, userId: UUID) async throws -> FeatureFlag {
         return try await withErrorHandling {
-            // Check if a flag with this key already exists for this user
-            if try await repository.exists(key: dto.key, userId: userId) {
+            // Check if a flag with this key already exists
+            if let organizationId = dto.organizationId {
+                // Check if the flag exists in the organization
+                let orgFlags = try await repository.getAllForOrganization(organizationId: organizationId)
+                if orgFlags.contains(where: { $0.key == dto.key }) {
+                    throw ResourceError.alreadyExists("Feature flag with key '\(dto.key)' already exists in this organization")
+                }
+            } else if try await repository.exists(key: dto.key, userId: userId) {
+                // Check if the flag exists for this user
                 throw ResourceError.alreadyExists("Feature flag with key '\(dto.key)'")
             }
             
             // Create the flag
-            let flag = FeatureFlag.create(from: dto, userId: userId)
+            let flag = FeatureFlag.create(from: dto, userId: userId, organizationId: dto.organizationId)
             try await repository.save(flag)
             
             // Create initial flag status (disabled by default)
