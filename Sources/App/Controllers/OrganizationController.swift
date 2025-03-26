@@ -9,20 +9,21 @@ struct OrganizationController: RouteCollection {
             .grouped(JWTAuthMiddleware.api)
         
         // Protected endpoints
-        organizations.post(use: create)
-        organizations.get(use: getUserOrganizations)
-        organizations.get(":organizationId", use: getOrganization)
-        organizations.put(":organizationId", use: updateOrganization)
-        organizations.delete(":organizationId", use: deleteOrganization)
+        organizations.post(use: { @Sendable req in try await create(req) })
+        organizations.get(use: { @Sendable req in try await getUserOrganizations(req) })
+        organizations.get(":organizationId", use: { @Sendable req in try await getOrganization(req) })
+        organizations.put(":organizationId", use: { @Sendable req in try await updateOrganization(req) })
+        organizations.delete(":organizationId", use: { @Sendable req in try await deleteOrganization(req) })
         
-        organizations.get(":organizationId", "members", use: getMembers)
-        organizations.post(":organizationId", "members", use: addMember)
-        organizations.delete(":organizationId", "members", ":userId", use: removeMember)
+        organizations.get(":organizationId", "members", use: { @Sendable req in try await getMembers(req) })
+        organizations.post(":organizationId", "members", use: { @Sendable req in try await addMember(req) })
+        organizations.delete(":organizationId", "members", ":userId", use: { @Sendable req in try await removeMember(req) })
     }
     
     /// Create a new organization
     /// - Parameter req: The HTTP request
     /// - Returns: The created organization
+    @Sendable
     private func create(_ req: Request) async throws -> OrganizationDTO {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -38,8 +39,7 @@ struct OrganizationController: RouteCollection {
     }
     
     /// Get all organizations for the authenticated user
-    /// - Parameter req: The HTTP request
-    /// - Returns: A list of organizations
+    @Sendable
     private func getUserOrganizations(_ req: Request) async throws -> UserOrganizationsDTO {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -52,8 +52,7 @@ struct OrganizationController: RouteCollection {
     }
     
     /// Get a specific organization
-    /// - Parameter req: The HTTP request
-    /// - Returns: The organization with its members
+    @Sendable
     private func getOrganization(_ req: Request) async throws -> OrganizationWithMembersDTO {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -69,8 +68,7 @@ struct OrganizationController: RouteCollection {
     }
     
     /// Update an organization
-    /// - Parameter req: The HTTP request
-    /// - Returns: The updated organization
+    @Sendable
     private func updateOrganization(_ req: Request) async throws -> OrganizationDTO {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -97,8 +95,7 @@ struct OrganizationController: RouteCollection {
     }
     
     /// Delete an organization
-    /// - Parameter req: The HTTP request
-    /// - Returns: A successful response
+    @Sendable
     private func deleteOrganization(_ req: Request) async throws -> HTTPStatus {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -122,8 +119,7 @@ struct OrganizationController: RouteCollection {
     }
     
     /// Get all members of an organization
-    /// - Parameter req: The HTTP request
-    /// - Returns: A list of organization members
+    @Sendable
     private func getMembers(_ req: Request) async throws -> [OrganizationMemberDTO] {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -139,8 +135,7 @@ struct OrganizationController: RouteCollection {
     }
     
     /// Add a member to an organization
-    /// - Parameter req: The HTTP request
-    /// - Returns: The created membership
+    @Sendable
     private func addMember(_ req: Request) async throws -> OrganizationMembershipDTO {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -163,8 +158,7 @@ struct OrganizationController: RouteCollection {
     }
     
     /// Remove a member from an organization
-    /// - Parameter req: The HTTP request
-    /// - Returns: A successful response
+    @Sendable
     private func removeMember(_ req: Request) async throws -> HTTPStatus {
         // Get the authenticated user
         let user = try req.auth.require(User.self)

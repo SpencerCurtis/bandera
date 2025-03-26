@@ -106,6 +106,8 @@ public func configure(_ app: Application) async throws {
         app.migrations.add(CreateAdminUser())
         // Add test users in development environment
         app.migrations.add(CreateTestUsers(environment: app.environment))
+        // Add test organizations and flags in development environment
+        app.migrations.add(CreateTestData(environment: app.environment))
     }
 
     // Run migrations automatically unless we're in a test environment
@@ -168,4 +170,5 @@ public func configure(_ app: Application) async throws {
     try app.register(collection: HealthController())
     try app.register(collection: ErrorController())
     try app.register(collection: RoutesController())
+    try app.register(collection: AdminController())
 }

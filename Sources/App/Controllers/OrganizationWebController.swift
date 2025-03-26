@@ -10,53 +10,54 @@ struct OrganizationWebController: RouteCollection {
         let organizations = basePath.grouped("organizations")
         
         // Organization listing
-        organizations.get(use: index)
+        organizations.get(use: { @Sendable req in try await index(req: req) })
         
         // Create organization
-        organizations.get("create", use: createForm)
-        organizations.post("create", use: create)
+        organizations.get("create", use: { @Sendable req in try await createForm(req: req) })
+        organizations.post("create", use: { @Sendable req in try await create(req: req) })
         
         // Organization detail
-        organizations.get(":organizationId", use: show)
+        organizations.get(":organizationId", use: { @Sendable req in try await show(req: req) })
         
         // Edit organization
-        organizations.get(":organizationId", "edit", use: editForm)
-        organizations.post(":organizationId", "edit", use: update)
+        organizations.get(":organizationId", "edit", use: { @Sendable req in try await editForm(req: req) })
+        organizations.post(":organizationId", "edit", use: { @Sendable req in try await update(req: req) })
         
         // Delete organization
-        organizations.post(":organizationId", "delete", use: delete)
+        organizations.post(":organizationId", "delete", use: { @Sendable req in try await delete(req: req) })
         
         // Member management
-        organizations.post(":organizationId", "members", use: addMember)
-        organizations.post(":organizationId", "members", ":userId", "remove", use: removeMember)
-        organizations.post(":organizationId", "members", ":userId", "role", use: updateMemberRole)
+        organizations.post(":organizationId", "members", use: { @Sendable req in try await addMember(req: req) })
+        organizations.post(":organizationId", "members", ":userId", "remove", use: { @Sendable req in try await removeMember(req: req) })
+        organizations.post(":organizationId", "members", ":userId", "role", use: { @Sendable req in try await updateMemberRole(req: req) })
         
         // Feature flag management
-        organizations.get(":organizationId", "flags", use: flagIndex)
-        organizations.get(":organizationId", "flags", "create", use: createFlagForm)
-        organizations.post(":organizationId", "flags", "create", use: createFlag)
-        organizations.get(":organizationId", "flags", ":flagId", use: showFlag)
-        organizations.get(":organizationId", "flags", ":flagId", "edit", use: editFlagForm)
-        organizations.post(":organizationId", "flags", ":flagId", "edit", use: updateFlag)
-        organizations.post(":organizationId", "flags", ":flagId", "delete", use: deleteFlag)
-        organizations.post(":organizationId", "flags", ":flagId", "export", use: exportFlag)
+        organizations.get(":organizationId", "flags", use: { @Sendable req in try await flagIndex(req: req) })
+        organizations.get(":organizationId", "flags", "create", use: { @Sendable req in try await createFlagForm(req: req) })
+        organizations.post(":organizationId", "flags", "create", use: { @Sendable req in try await createFlag(req: req) })
+        organizations.get(":organizationId", "flags", ":flagId", use: { @Sendable req in try await showFlag(req: req) })
+        organizations.get(":organizationId", "flags", ":flagId", "edit", use: { @Sendable req in try await editFlagForm(req: req) })
+        organizations.post(":organizationId", "flags", ":flagId", "edit", use: { @Sendable req in try await updateFlag(req: req) })
+        organizations.post(":organizationId", "flags", ":flagId", "delete", use: { @Sendable req in try await deleteFlag(req: req) })
+        organizations.post(":organizationId", "flags", ":flagId", "export", use: { @Sendable req in try await exportFlag(req: req) })
         
         // Feature flag overrides
-        organizations.post(":organizationId", "flags", ":flagId", "overrides", use: addOverride)
-        organizations.post(":organizationId", "flags", ":flagId", "overrides", ":overrideId", "delete", use: deleteOverride)
+        organizations.post(":organizationId", "flags", ":flagId", "overrides", use: { @Sendable req in try await addOverride(req: req) })
+        organizations.post(":organizationId", "flags", ":flagId", "overrides", ":overrideId", "delete", use: { @Sendable req in try await deleteOverride(req: req) })
     }
     
     // MARK: - Organization Management
     
-    /// Display a list of organizations
+    /// Show the organization listing page
+    @Sendable
     private func index(req: Request) async throws -> View {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
         
-        // Get all organizations the user is a member of
+        // Get the user's organizations
         let organizations = try await req.services.organizationService.getForUser(userId: user.id!)
         
-        // Render the organizations page
+        // Create view context
         let context = ViewContext(
             title: "Organizations",
             isAuthenticated: true,
@@ -68,13 +69,14 @@ struct OrganizationWebController: RouteCollection {
             redisConnected: true,
             memoryUsage: "N/A",
             lastDeployment: "N/A",
-            organizations: organizations
+            organizations: organizations.map { OrganizationDTO(from: $0) }
         )
         
         return try await req.view.render("organizations", context)
     }
     
     /// Display the organization creation form
+    @Sendable
     private func createForm(req: Request) async throws -> View {
         do {
             guard let user = req.auth.get(User.self) else {
@@ -88,7 +90,13 @@ struct OrganizationWebController: RouteCollection {
                 title: "Create Organization",
                 isAuthenticated: true,
                 isAdmin: user.isAdmin,
-                user: user
+                user: user,
+                environment: "development",
+                uptime: "N/A",
+                databaseConnected: true,
+                redisConnected: true,
+                memoryUsage: "N/A",
+                lastDeployment: "N/A"
             )
             
             return try await req.view.render("organization-create-form", context)
@@ -114,6 +122,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Create a new organization
+    @Sendable
     private func create(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -190,10 +199,10 @@ struct OrganizationWebController: RouteCollection {
         
         // Create context
         let context = ViewContext(
-            title: organizationWithMembers.name,
+            title: "Organization Details",
             isAuthenticated: true,
             isAdmin: isOrgAdmin,
-            currentUserId: user.id!,
+            user: user,
             environment: "development",
             uptime: "N/A",
             databaseConnected: true,
@@ -201,19 +210,15 @@ struct OrganizationWebController: RouteCollection {
             memoryUsage: "N/A",
             lastDeployment: "N/A",
             flags: flags,
-            organization: OrganizationDTO(
-                id: organizationWithMembers.id,
-                name: organizationWithMembers.name,
-                createdAt: organizationWithMembers.createdAt,
-                updatedAt: organizationWithMembers.updatedAt
-            ),
-            members: organizationWithMembers.members
+            organization: OrganizationDTO(from: organizationWithMembers),
+            members: organizationWithMembers.members.map { UserResponse(user: $0.user) }
         )
         
         return try await req.view.render("organization-detail", context)
     }
     
     /// Show form to edit an organization
+    @Sendable
     private func editForm(req: Request) async throws -> View {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -253,6 +258,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Update an organization
+    @Sendable
     private func update(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -280,6 +286,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Delete an organization
+    @Sendable
     private func delete(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -306,6 +313,7 @@ struct OrganizationWebController: RouteCollection {
     // MARK: - Member Management
     
     /// Add a member to an organization
+    @Sendable
     private func addMember(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -353,6 +361,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Remove a member from an organization
+    @Sendable
     private func removeMember(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -391,6 +400,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Update a member's role
+    @Sendable
     private func updateMemberRole(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -431,6 +441,7 @@ struct OrganizationWebController: RouteCollection {
     // MARK: - Feature Flag Management
     
     /// Show all feature flags for an organization
+    @Sendable
     private func flagIndex(req: Request) async throws -> View {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -476,6 +487,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Show form to create a new feature flag
+    @Sendable
     private func createFlagForm(req: Request) async throws -> View {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -514,6 +526,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Create a new feature flag
+    @Sendable
     private func createFlag(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -542,6 +555,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Show feature flag details
+    @Sendable
     private func showFlag(req: Request) async throws -> View {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -593,6 +607,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Show form to edit a feature flag
+    @Sendable
     private func editFlagForm(req: Request) async throws -> View {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -632,21 +647,24 @@ struct OrganizationWebController: RouteCollection {
             title: "Edit Feature Flag",
             isAuthenticated: true,
             isAdmin: true,
+            user: user,
             environment: "development",
             uptime: "N/A",
             databaseConnected: true,
             redisConnected: true,
             memoryUsage: "N/A",
             lastDeployment: "N/A",
-            flag: flag,
+            organizations: try await organizationService.getForUser(userId: user.id!).map { OrganizationDTO(from: $0) },
             organization: organizationService.createOrganizationDTO(from: organization),
-            editing: true
+            editing: true,
+            flag: flag
         )
         
         return try await req.view.render("organization-flag-form", context)
     }
     
     /// Update a feature flag
+    @Sendable
     private func updateFlag(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -689,6 +707,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Delete a feature flag
+    @Sendable
     private func deleteFlag(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -729,6 +748,7 @@ struct OrganizationWebController: RouteCollection {
     // MARK: - Feature Flag Overrides
     
     /// Add an override for a feature flag
+    @Sendable
     private func addOverride(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)
@@ -793,6 +813,7 @@ struct OrganizationWebController: RouteCollection {
     }
     
     /// Delete an override for a feature flag
+    @Sendable
     private func deleteOverride(req: Request) async throws -> Response {
         // Get the authenticated user
         let user = try req.auth.require(User.self)

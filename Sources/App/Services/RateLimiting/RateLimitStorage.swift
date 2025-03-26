@@ -1,5 +1,6 @@
 @preconcurrency
 import Vapor
+@preconcurrency
 import Redis
 import NIOCore
 

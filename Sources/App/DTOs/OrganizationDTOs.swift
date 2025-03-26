@@ -16,17 +16,21 @@ struct OrganizationWithRoleDTO: Content {
         self.createdAt = organization.createdAt
         self.updatedAt = organization.updatedAt
     }
+    
+    func toOrganization() -> Organization {
+        Organization(id: id, name: name)
+    }
 }
 
 /// DTO representing an Organization
 struct OrganizationDTO: Content {
     let id: UUID
     let name: String
+    let isPersonal: Bool
     let createdAt: Date?
     let updatedAt: Date?
-    let isPersonal: Bool
     
-    init(id: UUID, name: String, isPersonal: Bool = false, createdAt: Date? = nil, updatedAt: Date? = nil) {
+    internal init(id: UUID, name: String, isPersonal: Bool = false, createdAt: Date? = nil, updatedAt: Date? = nil) {
         self.id = id
         self.name = name
         self.isPersonal = isPersonal
@@ -34,12 +38,45 @@ struct OrganizationDTO: Content {
         self.updatedAt = updatedAt
     }
     
-    init(from organization: Organization) {
+    internal init(from organization: Organization) {
         self.id = organization.id!
         self.name = organization.name
         self.isPersonal = false // Organizations from the database are never personal
         self.createdAt = organization.createdAt
         self.updatedAt = organization.updatedAt
+    }
+    
+    internal init(from organization: OrganizationWithRoleDTO) {
+        self.id = organization.id
+        self.name = organization.name
+        self.isPersonal = false // Organizations with roles are never personal
+        self.createdAt = organization.createdAt
+        self.updatedAt = organization.updatedAt
+    }
+    
+    internal init(from organization: OrganizationWithMembersDTO) {
+        self.id = organization.id
+        self.name = organization.name
+        self.isPersonal = false // Organizations with members are never personal
+        self.createdAt = organization.createdAt
+        self.updatedAt = organization.updatedAt
+    }
+    
+    internal init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.isPersonal = try container.decodeIfPresent(Bool.self, forKey: .isPersonal) ?? false
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        self.updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case isPersonal
+        case createdAt
+        case updatedAt
     }
 }
 
@@ -48,11 +85,13 @@ struct OrganizationMemberDTO: Content {
     let id: UUID
     let email: String
     let role: String
+    let user: User
     
-    init(id: UUID, email: String, role: OrganizationRole) {
+    init(id: UUID, email: String, role: OrganizationRole, user: User) {
         self.id = id
         self.email = email
         self.role = role.rawValue
+        self.user = user
     }
 }
 

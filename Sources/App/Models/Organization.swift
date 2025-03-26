@@ -30,6 +30,11 @@ final class Organization: Model, Content {
         self.id = id
         self.name = name
     }
+    
+    init(id: UUID, name: String) {
+        self.id = id
+        self.name = name
+    }
 }
 
 // MARK: - Helper Methods

@@ -31,6 +31,9 @@
                                 Organizations
                             </a>
                             #if(isAdmin):
+                            <a href="/admin/users" class="#if(title == "Admin Dashboard"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                                Admin
+                            </a>
                             <a href="/routes" class="#if(title == "Application Routes"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Routes
                             </a>

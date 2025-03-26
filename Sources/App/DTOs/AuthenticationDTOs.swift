@@ -25,8 +25,15 @@ struct RegisterRequest: Content, Validatable {
     /// User's password
     let password: String
     
-    /// Whether the user should be an admin, defaults to false
-    let isAdmin: Bool = false
+    /// Whether the user should be an admin
+    let isAdmin: Bool
+    
+    /// Initialize with default values
+    init(email: String, password: String, isAdmin: Bool = false) {
+        self.email = email
+        self.password = password
+        self.isAdmin = isAdmin
+    }
     
     /// Validation rules for registration
     static func validations(_ validations: inout Validations) {

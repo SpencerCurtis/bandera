@@ -216,7 +216,6 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             let isEnabled = try await repository.isEnabled(id: id)
             
             // Get user's organizations (for import functionality)
-            let organizationRepository = OrganizationRepository(db: repository.database)
             let organizations = try await OrganizationUser.query(on: repository.database)
                 .filter(\.$user.$id == userId)
                 .with(\.$organization)

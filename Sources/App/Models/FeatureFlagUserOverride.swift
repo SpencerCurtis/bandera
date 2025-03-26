@@ -4,6 +4,8 @@ import Fluent
 final class FeatureFlagUserOverride: Model, Content {
     static let schema = "feature_flag_user_overrides"
     
+    typealias IDValue = UUID
+    
     @ID(key: .id)
     var id: UUID?
     

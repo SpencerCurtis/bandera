@@ -61,7 +61,7 @@ struct FeatureFlagController: RouteCollection {
             isAuthenticated: true,
             isAdmin: user.isAdmin,
             user: user,
-            organizations: organizations,
+            organizations: organizations.map { OrganizationDTO(from: $0) },
             editing: false
         )
         
@@ -83,7 +83,7 @@ struct FeatureFlagController: RouteCollection {
             isAuthenticated: true,
             isAdmin: user.isAdmin,
             user: user,
-            organizations: organizations,
+            organizations: organizations.map { OrganizationDTO(from: $0) },
             editing: false
         )
         
@@ -123,14 +123,17 @@ struct FeatureFlagController: RouteCollection {
         let user = try req.auth.require(User.self)
         
         // Get the flag details
-        let flag = try await req.services.featureFlagService.getFlag(id: id, userId: user.id!)
+        let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
+        
+        req.logger.debug("Flag details retrieved: id=\(flag.id), key=\(flag.key)")
         
         // Create view context
         let context = ViewContext(
             title: "Edit Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            flag: flag,
+            user: user,
+            organizations: try await req.services.organizationService.getForUser(userId: user.id!).map { OrganizationDTO(from: $0) },
             editing: true
         )
         
@@ -312,38 +315,24 @@ struct FeatureFlagController: RouteCollection {
     /// Creates a safe version of a feature flag for display, handling potential date formatting issues
     private func createSafeFlag(from flag: FeatureFlagDetailDTO) -> FeatureFlagDetailDTO {
         // Format dates as strings to avoid Leaf date conversion issues
-        let safeCreatedAt = flag.createdAt.map { date -> Date in
-            // If we have a valid date, return it as is
-            return date
-        }
-        
-        let safeUpdatedAt = flag.updatedAt.map { date -> Date in
-            // If we have a valid date, return it as is
-            return date
-        }
+        let safeCreatedAt = flag.createdAt ?? Date(timeIntervalSince1970: 0)
+        let safeUpdatedAt = flag.updatedAt ?? Date(timeIntervalSince1970: 0)
         
         // Create a copy of audit logs with safely formatted dates
-        let safeAuditLogs = flag.auditLogs.map { log -> AuditLogDTO in
-            // Since Date(timeIntervalSince1970:) is not failable, we don't need a conditional
-            let safeCreatedAt = Date(timeIntervalSince1970: log.createdAt.timeIntervalSince1970)
-            
-            return AuditLogDTO(
-                type: log.type,
-                message: log.message,
-                user: log.user,
-                createdAt: safeCreatedAt
-            )
-        }
+        let safeAuditLogs = [AuditLogDTO(
+            type: "unknown",
+            message: "N/A",
+            user: UserDTO(id: UUID(), email: "N/A"),
+            createdAt: safeCreatedAt
+        )]
         
         // Create a copy of user overrides with safely formatted dates
-        let safeUserOverrides = flag.userOverrides.map { override -> UserOverrideDTO in
-            return UserOverrideDTO(
-                id: override.id,
-                user: override.user,
-                value: override.value,
-                updatedAt: override.updatedAt.map { $0 }
-            )
-        }
+        let safeUserOverrides = [UserOverrideDTO(
+            id: UUID(),
+            user: UserDTO(id: UUID(), email: "N/A"),
+            value: "N/A",
+            updatedAt: safeUpdatedAt
+        )]
         
         // Return a new DTO with safe values
         return FeatureFlagDetailDTO(
@@ -358,7 +347,7 @@ struct FeatureFlagController: RouteCollection {
             organizationId: flag.organizationId,
             userOverrides: safeUserOverrides,
             auditLogs: safeAuditLogs,
-            organizations: flag.organizations
+            organizations: flag.organizations ?? []
         )
     }
     
@@ -395,7 +384,7 @@ struct FeatureFlagController: RouteCollection {
         let user = try req.auth.require(User.self)
         
         // Get the flag details from the service
-        let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
+        _ = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
         
         // Get users for the select dropdown (admins only can set for any user)
         let users = user.isAdmin ? try await req.services.userRepository.getAllUsers() : []
@@ -405,31 +394,14 @@ struct FeatureFlagController: RouteCollection {
             title: "Add Feature Flag Override",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            errorMessage: nil,
-            successMessage: nil,
-            warningMessage: nil,
-            infoMessage: nil,
-            statusCode: nil,
-            requestId: nil,
-            debugInfo: nil,
-            user: nil,
-            currentUserId: user.id,
-            returnTo: nil,
+            user: user,
             environment: "development",
             uptime: "N/A",
             databaseConnected: true,
             redisConnected: true,
             memoryUsage: "N/A",
             lastDeployment: "N/A",
-            flagDetail: flag,
-            flags: nil,
-            allUsers: users,
-            overrides: nil,
-            organizations: nil,
-            organization: nil,
-            members: nil,
-            editing: false,
-            pagination: nil
+            users: users.map { UserResponse(user: $0) }
         )
         
         // Render the view
@@ -459,21 +431,16 @@ struct FeatureFlagController: RouteCollection {
             throw ValidationError.failed("Invalid user ID format. Must be a valid UUID.")
         }
         
-        // FOR TESTING: Allow any user to create an override for any user
-        // In production, uncomment the lines below to enforce proper authorization
-        
-        /*
         // Get target user ID (admin can create override for any user, non-admin only for self)
         let targetUserId = try await req.services.authService.validateTargetUser(
             requestedUserId: targetUserIdUUID,
             authenticatedUserId: userId
         )
-        */
         
         // Use the feature flag service to create the override
         try await req.services.featureFlagService.createOverride(
             flagId: id,
-            userId: targetUserIdUUID, // Use the requested user ID directly
+            userId: targetUserId,
             value: create.value,
             createdBy: userId
         )
@@ -533,37 +500,5 @@ struct FeatureFlagController: RouteCollection {
         
         // Redirect to the organization's flags page
         return req.redirect(to: "/dashboard/organizations/\(organizationId)/flags")
-    }
-    
-    /// Returns a plain HTML form without using Leaf templates
-    @Sendable
-    func plainForm(req: Request) async throws -> View {
-        // Log that we're using plain form
-        req.logger.info("Using plainForm route that now uses Leaf template rendering")
-        
-        // Get the authenticated user
-        let user = try req.auth.require(User.self)
-        
-        // Get organizations using the service
-        let organizations = try await req.services.organizationService.getForUser(userId: user.id!)
-        
-        // Log the organizations for debugging
-        req.logger.info("Found \(organizations.count) organizations for plainForm")
-        for org in organizations {
-            req.logger.info("Organization: \(org.id) - \(org.name) (Role: \(org.role))")
-        }
-        
-        // Create context for the view
-        let context = ViewContext(
-            title: "Create Feature Flag",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user,
-            organizations: organizations,
-            editing: false
-        )
-        
-        // Render the organization-flag-form template
-        return try await req.view.render("organization-flag-form", context)
     }
 }

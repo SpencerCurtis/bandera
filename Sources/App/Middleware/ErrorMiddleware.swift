@@ -202,10 +202,9 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
             
             // Add debug info in development
             if environment == .development {
-                context.debugInfo = ["error": String(describing: error)]
+                context.debugInfo = String(describing: error)
             }
             
-            // Render the error page
             response.headers.contentType = .html
             return try await request.view.render("error", context).encodeResponse(for: request)
         } catch {

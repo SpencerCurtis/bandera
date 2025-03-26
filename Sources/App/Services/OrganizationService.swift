@@ -154,9 +154,10 @@ struct OrganizationService: OrganizationServiceProtocol {
         
         return members.map { member in
             OrganizationMemberDTO(
-                id: member.user.id!,
+                id: member.id!,
                 email: member.user.email,
-                role: member.role
+                role: member.role,
+                user: member.user
             )
         }
     }
@@ -175,9 +176,10 @@ struct OrganizationService: OrganizationServiceProtocol {
             }
             
             return OrganizationMemberDTO(
-                id: user.id!,
+                id: membership.id!,
                 email: user.email,
-                role: membership.role
+                role: membership.role,
+                user: user
             )
         }
         
