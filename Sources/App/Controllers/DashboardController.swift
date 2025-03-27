@@ -4,14 +4,16 @@ import Fluent
 // Renamed from AdminController to DashboardController to reflect its more general purpose
 struct DashboardController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Protected routes require authentication
-        let protected = routes.grouped(JWTAuthMiddleware.standard)
+        // Routes are already protected by JWTAuthMiddleware.standard from configure.swift
         
-        protected.get("dashboard", use: dashboard)
-        protected.get("dashboard", "feature-flags", "create", use: createFlag)
-        protected.post("dashboard", "feature-flags", "create", use: handleCreateFlag)
+        // Base dashboard route
+        routes.get(use: dashboard)
         
-        let flags = protected.grouped("dashboard", "feature-flags")
+        // Feature flag routes
+        routes.get("feature-flags", "create", use: createFlag)
+        routes.post("feature-flags", "create", use: handleCreateFlag)
+        
+        let flags = routes.grouped("feature-flags")
         flags.get(":id", "edit", use: editForm)
         flags.post(":id", "edit", use: updatePersonalFlag)
         flags.post(":id", "delete", use: deletePersonalFlag)

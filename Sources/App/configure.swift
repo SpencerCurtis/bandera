@@ -156,19 +156,71 @@ public func configure(_ app: Application) async throws {
     
     // MARK: - Route Registration
     
-    // Register routes
-    try routes(app)
-
-    // Register controllers
-    // try app.register(collection: TodoController())
-    // try app.register(collection: UserController())
+    // Public routes
+    app.get { req async throws -> Response in
+        // If user is authenticated, redirect to dashboard, otherwise to login
+        if req.auth.has(User.self) {
+            return req.redirect(to: "/dashboard")
+        }
+        return req.redirect(to: "/auth/login")
+    }
+    
+    // Convenience redirect from /login to /auth/login
+    app.get("login") { req -> Response in
+        return req.redirect(to: "/auth/login")
+    }
+    
+    // Register the auth controller for login/signup
     try app.register(collection: AuthController())
-    try app.register(collection: DashboardController())
-    try app.register(collection: FeatureFlagController())
-    try app.register(collection: OrganizationController())
-    try app.register(collection: OrganizationWebController())
+    
+    // Health check routes (no auth required)
     try app.register(collection: HealthController())
+    
+    // Error controller (no auth required)
     try app.register(collection: ErrorController())
-    try app.register(collection: RoutesController())
-    try app.register(collection: AdminController())
+    
+    // API routes with JWT API middleware (throws instead of redirects)
+    let api = app.grouped("api")
+        .grouped(JWTAuthMiddleware.api)
+    
+    // API organization routes
+    try api.register(collection: OrganizationController())
+    
+    // WebSocket routes
+    try api.register(collection: WebSocketController())
+    
+    // Web routes with standard JWT middleware (redirects to login)
+    let web = app.grouped(JWTAuthMiddleware.standard)
+    
+    // Dashboard routes
+    let dashboard = web.grouped("dashboard")
+    try dashboard.register(collection: DashboardController())
+    
+    // Feature flag routes
+    try dashboard.grouped("feature-flags")
+        .register(collection: FeatureFlagController())
+    
+    // Organization web routes
+    try dashboard.grouped("organizations")
+        .register(collection: OrganizationWebController())
+    
+    // Admin-only routes
+    let admin = web.grouped(JWTAuthMiddleware.admin)
+    try admin.register(collection: AdminController())
+    try admin.register(collection: RoutesController())
+    
+    // Error test routes (only in development)
+    if app.environment == .development {
+        app.get("error") { req -> Response in
+            throw Abort(.internalServerError, reason: "Test error")
+        }
+        
+        // Register development routes
+        DevRoutes.register(to: app)
+    }
+    
+    // Register the catchall route last, after all other routes are registered
+    app.get(.catchall) { req -> Response in
+        throw Abort(.notFound)
+    }
 }

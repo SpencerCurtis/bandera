@@ -4,47 +4,42 @@ import Vapor
 /// Controller for organization-related web endpoints
 struct OrganizationWebController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        // Since this controller is registered in configure.swift directly on the app,
-        // we need to specify the full path and add JWTAuthMiddleware
-        let basePath = routes.grouped("dashboard").grouped(JWTAuthMiddleware.standard)
-        let organizations = basePath.grouped("organizations")
-        
         // Organization listing
-        organizations.get(use: { @Sendable req in try await index(req: req) })
+        routes.get(use: { @Sendable req in try await index(req: req) })
         
         // Create organization
-        organizations.get("create", use: { @Sendable req in try await createForm(req: req) })
-        organizations.post("create", use: { @Sendable req in try await create(req: req) })
+        routes.get("create", use: { @Sendable req in try await createForm(req: req) })
+        routes.post("create", use: { @Sendable req in try await create(req: req) })
         
         // Organization detail
-        organizations.get(":organizationId", use: { @Sendable req in try await show(req: req) })
+        routes.get(":organizationId", use: { @Sendable req in try await show(req: req) })
         
         // Edit organization
-        organizations.get(":organizationId", "edit", use: { @Sendable req in try await editForm(req: req) })
-        organizations.post(":organizationId", "edit", use: { @Sendable req in try await update(req: req) })
+        routes.get(":organizationId", "edit", use: { @Sendable req in try await editForm(req: req) })
+        routes.post(":organizationId", "edit", use: { @Sendable req in try await update(req: req) })
         
         // Delete organization
-        organizations.post(":organizationId", "delete", use: { @Sendable req in try await delete(req: req) })
+        routes.post(":organizationId", "delete", use: { @Sendable req in try await delete(req: req) })
         
         // Member management
-        organizations.post(":organizationId", "members", use: { @Sendable req in try await addMember(req: req) })
-        organizations.post(":organizationId", "members", ":userId", "remove", use: { @Sendable req in try await removeMember(req: req) })
-        organizations.post(":organizationId", "members", ":userId", "role", use: { @Sendable req in try await updateMemberRole(req: req) })
+        routes.post(":organizationId", "members", use: { @Sendable req in try await addMember(req: req) })
+        routes.post(":organizationId", "members", ":userId", "remove", use: { @Sendable req in try await removeMember(req: req) })
+        routes.post(":organizationId", "members", ":userId", "role", use: { @Sendable req in try await updateMemberRole(req: req) })
         
         // Feature flag management
-        organizations.get(":organizationId", "flags", use: { @Sendable req in try await flagIndex(req: req) })
-        organizations.get(":organizationId", "flags", "create", use: { @Sendable req in try await createFlagForm(req: req) })
-        organizations.post(":organizationId", "flags", "create", use: { @Sendable req in try await createFlag(req: req) })
-        organizations.get(":organizationId", "flags", ":flagId", use: { @Sendable req in try await showFlag(req: req) })
-        organizations.get(":organizationId", "flags", ":flagId", "edit", use: { @Sendable req in try await editFlagForm(req: req) })
-        organizations.post(":organizationId", "flags", ":flagId", "edit", use: { @Sendable req in try await updateFlag(req: req) })
-        organizations.post(":organizationId", "flags", ":flagId", "delete", use: { @Sendable req in try await deleteFlag(req: req) })
-        organizations.post(":organizationId", "flags", ":flagId", "export", use: { @Sendable req in try await exportFlag(req: req) })
+        routes.get(":organizationId", "flags", use: { @Sendable req in try await flagIndex(req: req) })
+        routes.get(":organizationId", "flags", "create", use: { @Sendable req in try await createFlagForm(req: req) })
+        routes.post(":organizationId", "flags", "create", use: { @Sendable req in try await createFlag(req: req) })
+        routes.get(":organizationId", "flags", ":flagId", use: { @Sendable req in try await showFlag(req: req) })
+        routes.get(":organizationId", "flags", ":flagId", "edit", use: { @Sendable req in try await editFlagForm(req: req) })
+        routes.post(":organizationId", "flags", ":flagId", "edit", use: { @Sendable req in try await updateFlag(req: req) })
+        routes.post(":organizationId", "flags", ":flagId", "delete", use: { @Sendable req in try await deleteFlag(req: req) })
+        routes.post(":organizationId", "flags", ":flagId", "export", use: { @Sendable req in try await exportFlag(req: req) })
         
         // Feature flag overrides
-        organizations.get(":organizationId", "flags", ":flagId", "overrides", "create", use: { @Sendable req in try await createOverrideForm(req: req) })
-        organizations.post(":organizationId", "flags", ":flagId", "overrides", use: { @Sendable req in try await addOverride(req: req) })
-        organizations.post(":organizationId", "flags", ":flagId", "overrides", ":overrideId", "delete", use: { @Sendable req in try await deleteOverride(req: req) })
+        routes.get(":organizationId", "flags", ":flagId", "overrides", "create", use: { @Sendable req in try await createOverrideForm(req: req) })
+        routes.post(":organizationId", "flags", ":flagId", "overrides", use: { @Sendable req in try await addOverride(req: req) })
+        routes.post(":organizationId", "flags", ":flagId", "overrides", ":overrideId", "delete", use: { @Sendable req in try await deleteOverride(req: req) })
     }
     
     // MARK: - Organization Management
