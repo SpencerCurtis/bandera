@@ -219,6 +219,57 @@ rule "Follow Fluent ORM patterns" {
   ]
 }
 
+# View Contexts
+rule "Follow view context patterns" {
+  description = "Maintain consistent view context structure throughout the application"
+  patterns = [
+    "Create dedicated view context struct for each Leaf template",
+    "View context structs should be in Sources/App/DTOs/ViewContexts/",
+    "View context names should end with 'ViewContext'",
+    "View contexts should conform to Content protocol",
+    "View contexts should include BaseViewContext for common properties",
+    "View contexts should be named after their corresponding template",
+    "Document all view context properties with /// comments",
+    "Keep view contexts focused on template-specific data",
+    "Use clear property names that match template usage",
+    "Include proper type annotations for all properties",
+    "Provide clear initializers with descriptive parameter names",
+    "Never use generic ViewContext type directly",
+    "Group related properties together within context structs",
+    "Consider making properties optional when they might not always be needed",
+    "Include validation logic in initializers when necessary"
+  ]
+}
+
+rule "Follow view context naming conventions" {
+  description = "Use consistent naming for view contexts and their files"
+  patterns = [
+    "Name view contexts after their template (e.g. 'login.leaf' -> 'LoginViewContext')",
+    "Use PascalCase for view context struct names",
+    "Use camelCase for view context properties",
+    "Name files same as struct with .swift extension",
+    "Group related view contexts in subdirectories if needed",
+    "Use descriptive suffixes for specialized contexts (e.g. 'FormViewContext', 'DetailViewContext')",
+    "Keep naming consistent with route and controller patterns"
+  ]
+}
+
+rule "Follow view context organization" {
+  description = "Maintain consistent organization of view context code"
+  patterns = [
+    "Place all view contexts in Sources/App/DTOs/ViewContexts/",
+    "One view context per file",
+    "Import only necessary modules",
+    "Document public APIs with /// comments",
+    "Group related properties together",
+    "Place computed properties after stored properties",
+    "Place initializers after properties",
+    "Place helper methods in extensions",
+    "Keep contexts focused and single-purpose",
+    "Consider breaking large contexts into smaller, focused ones"
+  ]
+}
+
 # Application Architecture
 rule "Follow Bandera architectural patterns" {
   description = "Maintain consistent application architecture specific to Bandera"
@@ -228,7 +279,7 @@ rule "Follow Bandera architectural patterns" {
     "Use repository pattern for data access",
     "Use service layer for business logic",
     "Use DTOs for API requests/responses",
-    "Use ViewContext for template data",
+    "Create dedicated view context for each Leaf template",
     "Use JWT for authentication",
     "Use rate limiting for API endpoints",
     "Use environment-based configuration",
@@ -250,7 +301,7 @@ rule "Follow feature flag patterns" {
     "Use feature flag audit logging",
     "Use feature flag documentation"
   ]
-} 
+}
 
 rule "Follow development workflow best practices" {
   description = "Maintain consistent development workflow for Bandera project"

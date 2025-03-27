@@ -20,25 +20,42 @@ struct AdminController: RouteCollection {
         let users = try await User.query(on: req.db)
             .sort(\.$email)
             .all()
+            .map { UserResponse(user: $0) }
+        
+        // Get all organizations
+        let organizations = try await Organization.query(on: req.db)
+            .sort(\.$name)
+            .all()
+            .map { OrganizationDTO(from: $0) }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self) else {
             throw AuthenticationError.authenticationRequired
         }
         
-        // Create the context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Admin Dashboard",
             isAuthenticated: true,
             isAdmin: payload.isAdmin,
-            user: try await User.find(UUID(payload.subject.value), on: req.db),
-            environment: "development",
+            user: try await User.find(UUID(uuidString: payload.subject.value), on: req.db)
+        )
+        
+        // Create health info
+        let healthInfo = AdminDashboardViewContext.HealthInfo(
             uptime: "N/A",
             databaseConnected: true,
             redisConnected: true,
             memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            users: users.map { UserResponse(user: $0) }
+            lastDeployment: "N/A"
+        )
+        
+        // Create admin dashboard context
+        let context = AdminDashboardViewContext(
+            base: baseContext,
+            users: users,
+            organizations: organizations,
+            healthInfo: healthInfo
         )
         
         // Render the admin dashboard template

@@ -12,15 +12,13 @@ struct RoutesController: RouteCollection {
     @Sendable
     func listRoutes(req: Request) async throws -> View {
         // Get the authenticated user
-        guard let payload = req.auth.get(UserJWTPayload.self) else {
-            throw AuthenticationError.authenticationRequired
-        }
+        let user = try req.auth.require(User.self)
         
         // Get all routes from the application
         let routes = req.application.routes.all
         
         // Create route info objects
-        var routeInfos: [RouteInfo] = []
+        var routeInfos: [RoutesViewContext.RouteInfo] = []
         
         // Create a set to track unique routes by method and path
         var uniqueRoutes = Set<String>()
@@ -50,7 +48,7 @@ struct RoutesController: RouteCollection {
                 group = components.first.map { String($0) } ?? "Other"
             }
             
-            routeInfos.append(RouteInfo(
+            routeInfos.append(.init(
                 path: path.isEmpty ? "/" : "/\(path)",
                 method: method,
                 description: description,
@@ -71,14 +69,20 @@ struct RoutesController: RouteCollection {
         
         // Convert the dictionary to an array of GroupedRoutes for the template
         let groupedRoutes = groupedRoutesDict.map { key, value in
-            return GroupedRoutes(key: key, value: value)
+            return RoutesViewContext.GroupedRoutes(key: key, value: value)
         }.sorted { $0.key < $1.key }
         
-        // Create the context
-        let context = RoutesContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Application Routes",
             isAuthenticated: true,
-            isAdmin: payload.isAdmin,
+            isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create routes context
+        let context = RoutesViewContext(
+            base: baseContext,
             routes: routeInfos,
             groupedRoutes: groupedRoutes
         )

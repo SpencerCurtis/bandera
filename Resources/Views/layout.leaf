@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>#(title) - Bandera</title>
+    <title>#(base.title) - Bandera</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -15,7 +15,7 @@
     </script>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col text-gray-900 dark:text-gray-100">
-    #if(isAuthenticated):
+    #if(base.isAuthenticated):
         <nav class="bg-white dark:bg-gray-800 shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between h-16">
@@ -24,24 +24,24 @@
                             <a href="/dashboard" class="text-xl font-bold text-gray-800 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">Bandera</a>
                         </div>
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="/dashboard" class="#if(title == "Dashboard"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            <a href="/dashboard" class="#if(base.title == "Dashboard"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Dashboard
                             </a>
-                            <a href="/dashboard/organizations" class="#if(title == "Organizations" || title == "Organization Feature Flags" || title == "Create Organization" || title == "Edit Organization"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            <a href="/dashboard/organizations" class="#if(base.title == "Organizations" || base.title == "Organization Feature Flags" || base.title == "Create Organization" || base.title == "Edit Organization"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Organizations
                             </a>
-                            #if(isAdmin):
-                            <a href="/admin/users" class="#if(title == "Admin Dashboard"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            #if(base.isAdmin):
+                            <a href="/admin/users" class="#if(base.title == "Admin Dashboard"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Admin
                             </a>
-                            <a href="/routes" class="#if(title == "Application Routes"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            <a href="/routes" class="#if(base.title == "Application Routes"):border-indigo-500 text-gray-900 dark:text-white#else:border-transparent text-gray-500 dark:text-gray-300 hover:border-indigo-300 hover:text-gray-700 dark:hover:text-white#endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                                 Routes
                             </a>
                             #endif
                         </div>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:items-center">
-                        <span class="text-sm font-medium text-gray-300">#if(user): #(user.email) #endif</span>
+                        <span class="text-sm font-medium text-gray-300">#if(base.user): #(base.user.email) #endif</span>
                         <a href="/auth/logout" class="ml-4 inline-flex items-center px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:border-gray-500 focus:outline-none transition-colors duration-200">
                             Logout
                         </a>
@@ -52,7 +52,7 @@
     #endif
     
     <main class="flex-grow">
-        #if(errorMessage):
+        #if(base.errorMessage):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="rounded-md bg-red-50 dark:bg-red-900 p-4">
                     <div class="flex">
@@ -63,7 +63,7 @@
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
-                                #(errorMessage)
+                                #(base.errorMessage)
                             </h3>
                         </div>
                     </div>
@@ -71,7 +71,7 @@
             </div>
         #endif
         
-        #if(successMessage):
+        #if(base.successMessage):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="rounded-md bg-green-50 dark:bg-green-900 p-4">
                     <div class="flex">
@@ -82,7 +82,7 @@
                         </div>
                         <div class="ml-3">
                             <p class="text-sm font-medium text-green-800 dark:text-green-200">
-                                #(successMessage)
+                                #(base.successMessage)
                             </p>
                         </div>
                     </div>
@@ -90,7 +90,7 @@
             </div>
         #endif
         
-        #if(warningMessage):
+        #if(base.warningMessage):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="rounded-md bg-yellow-50 dark:bg-yellow-900 p-4">
                     <div class="flex">
@@ -101,7 +101,7 @@
                         </div>
                         <div class="ml-3">
                             <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                                #(warningMessage)
+                                #(base.warningMessage)
                             </p>
                         </div>
                     </div>
@@ -109,7 +109,7 @@
             </div>
         #endif
         
-        #if(infoMessage):
+        #if(base.infoMessage):
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="rounded-md bg-blue-50 dark:bg-blue-900 p-4">
                     <div class="flex">
@@ -120,7 +120,7 @@
                         </div>
                         <div class="ml-3">
                             <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
-                                #(infoMessage)
+                                #(base.infoMessage)
                             </p>
                         </div>
                     </div>

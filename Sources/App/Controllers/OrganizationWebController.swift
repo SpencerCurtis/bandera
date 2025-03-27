@@ -42,6 +42,7 @@ struct OrganizationWebController: RouteCollection {
         organizations.post(":organizationId", "flags", ":flagId", "export", use: { @Sendable req in try await exportFlag(req: req) })
         
         // Feature flag overrides
+        organizations.get(":organizationId", "flags", ":flagId", "overrides", "create", use: { @Sendable req in try await createOverrideForm(req: req) })
         organizations.post(":organizationId", "flags", ":flagId", "overrides", use: { @Sendable req in try await addOverride(req: req) })
         organizations.post(":organizationId", "flags", ":flagId", "overrides", ":overrideId", "delete", use: { @Sendable req in try await deleteOverride(req: req) })
     }
@@ -57,18 +58,17 @@ struct OrganizationWebController: RouteCollection {
         // Get the user's organizations
         let organizations = try await req.services.organizationService.getForUser(userId: user.id!)
         
-        // Create view context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Organizations",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            user: user,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
+            user: user
+        )
+        
+        // Create organizations context
+        let context = OrganizationsViewContext(
+            base: baseContext,
             organizations: organizations.map { OrganizationDTO(from: $0) }
         )
         
@@ -85,19 +85,16 @@ struct OrganizationWebController: RouteCollection {
             
             req.logger.info("Rendering organization creation form for user \(user.email) with ID \(user.id?.uuidString ?? "unknown")")
             
-            // Create a proper context directly with the ViewContext initializer
-            let context = ViewContext(
+            // Create base context
+            let baseContext = BaseViewContext(
                 title: "Create Organization",
                 isAuthenticated: true,
                 isAdmin: user.isAdmin,
-                user: user,
-                environment: "development",
-                uptime: "N/A",
-                databaseConnected: true,
-                redisConnected: true,
-                memoryUsage: "N/A",
-                lastDeployment: "N/A"
+                user: user
             )
+            
+            // Create organization form context
+            let context = OrganizationCreateViewContext(base: baseContext)
             
             return try await req.view.render("organization-create-form", context)
         } catch {
@@ -109,14 +106,19 @@ struct OrganizationWebController: RouteCollection {
                 req.logger.error("Abort error status: \(abortError.status)")
             }
             
-            // Create a detailed error context with debugging info
-            let errorContext = ViewContext.error(
-                status: 500,
+            // Create a detailed error context
+            let baseContext = BaseViewContext(
+                title: "Error",
+                isAuthenticated: false,
+                errorMessage: "Failed to load organization form: \(error.localizedDescription)"
+            )
+            
+            let errorContext = ErrorViewContext(
+                base: baseContext,
+                statusCode: 500,
                 reason: "Failed to load organization form: \(error.localizedDescription)"
             )
             
-            // Log the templates available
-            req.logger.info("Attempting to render error template...")
             return try await req.view.render("error", errorContext)
         }
     }
@@ -197,21 +199,21 @@ struct OrganizationWebController: RouteCollection {
         let featureFlagRepository = req.services.featureFlagRepository
         let flags = try await featureFlagRepository.getAllForOrganization(organizationId: organizationId)
         
-        // Create context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Organization Details",
             isAuthenticated: true,
             isAdmin: isOrgAdmin,
-            user: user,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            flags: flags,
+            user: user
+        )
+        
+        // Create organization detail context
+        let context = OrganizationDetailViewContext(
+            base: baseContext,
             organization: OrganizationDTO(from: organizationWithMembers),
-            members: organizationWithMembers.members.map { UserResponse(user: $0.user) }
+            flags: flags.map { FeatureFlagResponse(flag: $0) },
+            members: organizationWithMembers.members.map { UserResponse(user: $0.user) },
+            currentUserId: user.id!
         )
         
         return try await req.view.render("organization-detail", context)
@@ -238,23 +240,22 @@ struct OrganizationWebController: RouteCollection {
             throw AuthorizationError.notAuthorized(reason: "You must be an admin to edit this organization")
         }
         
-        // Create context with editing explicitly set to true
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Edit Organization",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A", 
-            lastDeployment: "N/A",
-            organization: organizationService.createOrganizationDTO(from: organization),
-            editing: true
+            user: user
         )
         
-        req.logger.info("Rendering organization-form template for editing organization \(organizationId) with editing=\(String(describing: context.editing))")
-        return try await req.view.render("organization-form", context)
+        // Create organization form context
+        let context = OrganizationEditViewContext(
+            base: baseContext,
+            organization: organizationService.createOrganizationDTO(from: organization)
+        )
+        
+        req.logger.info("Rendering organization-edit-form template for editing organization \(organizationId)")
+        return try await req.view.render("organization-edit-form", context)
     }
     
     /// Update an organization
@@ -440,7 +441,7 @@ struct OrganizationWebController: RouteCollection {
     
     // MARK: - Feature Flag Management
     
-    /// Show all feature flags for an organization
+    /// Show the feature flags for an organization
     @Sendable
     private func flagIndex(req: Request) async throws -> View {
         // Get the authenticated user
@@ -463,24 +464,26 @@ struct OrganizationWebController: RouteCollection {
         // Get the organization
         let organizationService = try req.organizationService()
         let organization = try await organizationService.get(id: organizationId)
+        let orgDTO = organizationService.createOrganizationDTO(from: organization)
         
         // Get the organization's feature flags
         let featureFlagRepository = req.services.featureFlagRepository
         let flags = try await featureFlagRepository.getAllForOrganization(organizationId: organizationId)
         
-        // Create context
-        let context = ViewContext(
-            title: "Organization Feature Flags",
+        // Create base context
+        let baseContext = BaseViewContext(
+            title: "\(organization.name) Feature Flags",
             isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create organization flags context
+        let context = OrganizationFlagsViewContext(
+            base: baseContext,
+            organization: orgDTO,
             isAdmin: isOrgAdmin,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            flags: flags,
-            organization: organizationService.createOrganizationDTO(from: organization)
+            flags: flags
         )
         
         return try await req.view.render("organization-flags", context)
@@ -506,20 +509,20 @@ struct OrganizationWebController: RouteCollection {
         // Get the organization
         let organizationService = try req.organizationService()
         let organization = try await organizationService.get(id: organizationId)
+        let orgDTO = organizationService.createOrganizationDTO(from: organization)
         
-        // Create context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Create Feature Flag",
             isAuthenticated: true,
-            isAdmin: true,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            organization: organizationService.createOrganizationDTO(from: organization),
-            editing: false
+            isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create context
+        let context = OrganizationFlagFormViewContext(
+            base: baseContext,
+            organization: orgDTO
         )
         
         return try await req.view.render("organization-flag-form", context)
@@ -595,8 +598,17 @@ struct OrganizationWebController: RouteCollection {
         // Get organization members for the override form
         let members = try await organizationRepository.getMembers(organizationId: organizationId)
         
-        // Create unified context
-        let context = UnifiedFlagDetailContext.organizational(
+        // Create base context
+        let baseContext = BaseViewContext(
+            title: "Feature Flag: \(flag.key)",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create flag detail context
+        let context = FlagDetailViewContext(
+            base: baseContext,
             flag: flag,
             organization: orgDTO,
             canEdit: isOrgAdmin,
@@ -630,33 +642,29 @@ struct OrganizationWebController: RouteCollection {
         // Get the organization
         let organizationService = try req.organizationService()
         let organization = try await organizationService.get(id: organizationId)
+        let orgDTO = organizationService.createOrganizationDTO(from: organization)
         
-        // Get the feature flag
-        let featureFlagRepository = req.services.featureFlagRepository
-        guard let flag = try await featureFlagRepository.get(id: flagId) else {
-            throw NotFoundError.featureFlag(flagId)
-        }
+        // Get the feature flag details
+        let featureFlagService = req.services.featureFlagService
+        let flag = try await featureFlagService.getFlagDetails(id: flagId, userId: user.id!)
         
-        // Verify this flag belongs to the organization
+        // Verify this flag belongs to this organization
         if flag.organizationId != organizationId {
             throw AuthorizationError.notAuthorized(reason: "This feature flag does not belong to this organization")
         }
         
-        // Create context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Edit Feature Flag",
             isAuthenticated: true,
-            isAdmin: true,
-            user: user,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            organizations: try await organizationService.getForUser(userId: user.id!).map { OrganizationDTO(from: $0) },
-            organization: organizationService.createOrganizationDTO(from: organization),
-            editing: true,
+            isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create context
+        let context = OrganizationFlagFormViewContext(
+            base: baseContext,
+            organization: orgDTO,
             flag: flag
         )
         
@@ -743,6 +751,65 @@ struct OrganizationWebController: RouteCollection {
         
         // Redirect to the organization's feature flags list
         return req.redirect(to: "/dashboard/organizations/\(organizationId)/flags")
+    }
+    
+    /// Show form to create a feature flag override
+    @Sendable
+    private func createOverrideForm(req: Request) async throws -> View {
+        // Get the authenticated user
+        let user = try req.auth.require(User.self)
+        
+        // Get the organization ID and flag ID
+        guard let organizationId = req.parameters.get("organizationId", as: UUID.self) else {
+            throw ValidationError.failed("Invalid organization ID")
+        }
+        
+        guard let flagId = req.parameters.get("flagId", as: UUID.self) else {
+            throw ValidationError.failed("Invalid flag ID")
+        }
+        
+        // Check if user is an admin of this organization
+        let organizationRepository = try req.organizationRepository()
+        if !(try await organizationRepository.isAdmin(userId: user.id!, organizationId: organizationId)) {
+            throw AuthorizationError.notAuthorized(reason: "You must be an admin to add overrides for this organization")
+        }
+        
+        // Get the organization
+        let organizationService = try req.organizationService()
+        let organization = try await organizationService.get(id: organizationId)
+        let orgDTO = organizationService.createOrganizationDTO(from: organization)
+        
+        // Get the feature flag
+        let featureFlagRepository = req.services.featureFlagRepository
+        guard let flag = try await featureFlagRepository.get(id: flagId) else {
+            throw NotFoundError.featureFlag(flagId)
+        }
+        
+        // Verify this flag belongs to the organization
+        if flag.organizationId != organizationId {
+            throw AuthorizationError.notAuthorized(reason: "This feature flag does not belong to this organization")
+        }
+        
+        // Get organization members for the override form
+        let members = try await organizationRepository.getMembers(organizationId: organizationId)
+        
+        // Create base context
+        let baseContext = BaseViewContext(
+            title: "Add Feature Flag Override",
+            isAuthenticated: true,
+            isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create override form context
+        let context = FeatureFlagOverrideFormViewContext(
+            base: baseContext,
+            flag: flag,
+            organization: orgDTO,
+            allUsers: members.map { UserResponse(user: $0.user) }
+        )
+        
+        return try await req.view.render("feature-flag-override-form", context)
     }
     
     // MARK: - Feature Flag Overrides
@@ -856,6 +923,11 @@ struct OrganizationWebController: RouteCollection {
         // Verify the override belongs to this flag
         if override.$featureFlag.id != flagId {
             throw AuthorizationError.notAuthorized(reason: "This override does not belong to this feature flag")
+        }
+        
+        // Verify the override belongs to a user in this organization
+        if !(try await organizationRepository.isMember(userId: override.$user.id, organizationId: organizationId)) {
+            throw AuthorizationError.notAuthorized(reason: "This override does not belong to a user in this organization")
         }
         
         // Delete the override

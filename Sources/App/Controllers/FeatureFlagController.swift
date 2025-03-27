@@ -75,16 +75,20 @@ struct FeatureFlagController: RouteCollection {
         let user = try req.auth.require(User.self)
         
         // Get the user's organizations
-        let organizations = (try? await req.services.organizationService.getForUser(userId: user.id!)) ?? []
+        let organizations = try await req.services.organizationService.getForUser(userId: user.id!)
         
-        // Create context for the view with explicit organizations array
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Create Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            user: user,
-            organizations: organizations.map { OrganizationDTO(from: $0) },
-            editing: false
+            user: user
+        )
+        
+        // Create context for the view with explicit organizations array
+        let context = OrganizationFlagFormViewContext(
+            base: baseContext,
+            organizations: organizations.map { OrganizationDTO(from: $0) }
         )
         
         // Render the organization flag form template
@@ -100,11 +104,17 @@ struct FeatureFlagController: RouteCollection {
         // Get all flags for the user
         let flags = try await req.services.featureFlagService.getAllFlags(userId: user.id!)
         
-        // Create view context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Feature Flags",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create context
+        let context = FeatureFlagsViewContext(
+            base: baseContext,
             flags: flags
         )
         
@@ -127,14 +137,29 @@ struct FeatureFlagController: RouteCollection {
         
         req.logger.debug("Flag details retrieved: id=\(flag.id), key=\(flag.key)")
         
-        // Create view context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Edit Feature Flag",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            user: user,
-            organizations: try await req.services.organizationService.getForUser(userId: user.id!).map { OrganizationDTO(from: $0) },
-            editing: true
+            user: user
+        )
+        
+        // Get the organization if this is an organizational flag
+        let organization: OrganizationDTO?
+        if let orgId = flag.organizationId {
+            let organizationService = try req.organizationService()
+            let org = try await organizationService.get(id: orgId)
+            organization = organizationService.createOrganizationDTO(from: org)
+        } else {
+            organization = nil
+        }
+        
+        // Create context for the view
+        let context = OrganizationFlagFormViewContext(
+            base: baseContext,
+            organization: organization,
+            flag: flag
         )
         
         return try await req.view.render("organization-flag-form", context)
@@ -259,19 +284,18 @@ struct FeatureFlagController: RouteCollection {
             
             req.logger.debug("Flag details retrieved: id=\(flag.id), key=\(flag.key)")
             
-            // Create a safe version of the flag for display
-            var safeFlag = createSafeFlag(from: flag)
-            
-            // Ensure organizations is never nil to avoid Leaf template issues
-            if safeFlag.organizations == nil {
-                safeFlag.organizations = []
-            }
-            
             // Get members for user overrides if user is admin
             let members = user.isAdmin ? try await req.services.userRepository.getAllUsers() : []
             
+            // Create base context
+            let baseContext = BaseViewContext(
+                title: "Feature Flag: \(flag.key)",
+                isAuthenticated: true,
+                isAdmin: user.isAdmin,
+                user: user
+            )
+            
             // Create context based on whether this is a personal or organization flag
-            var context: UnifiedFlagDetailContext
             if let orgId = flag.organizationId {
                 // Get organization details
                 let orgService = try req.organizationService()
@@ -281,12 +305,16 @@ struct FeatureFlagController: RouteCollection {
                 // Check if user is an admin of this organization
                 let isOrgAdmin = try await req.organizationRepository().isAdmin(userId: user.id!, organizationId: orgId)
                 
-                context = .organizational(
-                    flag: safeFlag,
+                // Create flag detail context
+                let context = FlagDetailViewContext(
+                    base: baseContext,
+                    flag: flag,
                     organization: orgDTO,
                     canEdit: isOrgAdmin,
                     members: members
                 )
+                
+                return try await req.view.render("flag-detail", context)
             } else {
                 // Create a personal organization DTO
                 let personalOrgDTO = OrganizationDTO(
@@ -295,60 +323,21 @@ struct FeatureFlagController: RouteCollection {
                     isPersonal: true
                 )
                 
-                context = .personal(
-                    flag: safeFlag,
+                // Create flag detail context
+                let context = FlagDetailViewContext(
+                    base: baseContext,
+                    flag: flag,
+                    organization: personalOrgDTO,
                     canEdit: true, // User can always edit their personal flags
                     members: members
                 )
                 
-                // Set the organization after creation since personal() factory doesn't take it
-                context.organization = personalOrgDTO
+                return try await req.view.render("flag-detail", context)
             }
-            
-            return try await req.view.render("flag-detail", context)
         } catch {
             req.logger.error("Error retrieving flag details: \(error)")
             throw error
         }
-    }
-    
-    /// Creates a safe version of a feature flag for display, handling potential date formatting issues
-    private func createSafeFlag(from flag: FeatureFlagDetailDTO) -> FeatureFlagDetailDTO {
-        // Format dates as strings to avoid Leaf date conversion issues
-        let safeCreatedAt = flag.createdAt ?? Date(timeIntervalSince1970: 0)
-        let safeUpdatedAt = flag.updatedAt ?? Date(timeIntervalSince1970: 0)
-        
-        // Create a copy of audit logs with safely formatted dates
-        let safeAuditLogs = [AuditLogDTO(
-            type: "unknown",
-            message: "N/A",
-            user: UserDTO(id: UUID(), email: "N/A"),
-            createdAt: safeCreatedAt
-        )]
-        
-        // Create a copy of user overrides with safely formatted dates
-        let safeUserOverrides = [UserOverrideDTO(
-            id: UUID(),
-            user: UserDTO(id: UUID(), email: "N/A"),
-            value: "N/A",
-            updatedAt: safeUpdatedAt
-        )]
-        
-        // Return a new DTO with safe values
-        return FeatureFlagDetailDTO(
-            id: flag.id,
-            key: flag.key,
-            type: flag.type,
-            defaultValue: flag.defaultValue,
-            description: flag.description,
-            isEnabled: flag.isEnabled,
-            createdAt: safeCreatedAt,
-            updatedAt: safeUpdatedAt,
-            organizationId: flag.organizationId,
-            userOverrides: safeUserOverrides,
-            auditLogs: safeAuditLogs,
-            organizations: flag.organizations ?? []
-        )
     }
     
     /// Toggles a feature flag on/off.
@@ -372,7 +361,7 @@ struct FeatureFlagController: RouteCollection {
         return req.redirect(to: "/dashboard/feature-flags/\(id)")
     }
     
-    /// Renders the create override form for a feature flag.
+    /// Renders the form for creating a feature flag override
     @Sendable
     func createOverrideForm(req: Request) async throws -> View {
         // Get the flag ID from the request parameters
@@ -384,24 +373,35 @@ struct FeatureFlagController: RouteCollection {
         let user = try req.auth.require(User.self)
         
         // Get the flag details from the service
-        _ = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
+        let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
         
         // Get users for the select dropdown (admins only can set for any user)
         let users = user.isAdmin ? try await req.services.userRepository.getAllUsers() : []
         
-        // Create view context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Add Feature Flag Override",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            user: user,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            users: users.map { UserResponse(user: $0) }
+            user: user
+        )
+        
+        // Get the organization if this is an organizational flag
+        let organization: OrganizationDTO?
+        if let orgId = flag.organizationId {
+            let organizationService = try req.organizationService()
+            let org = try await organizationService.get(id: orgId)
+            organization = organizationService.createOrganizationDTO(from: org)
+        } else {
+            organization = nil
+        }
+        
+        // Create override form context
+        let context = FeatureFlagOverrideFormViewContext(
+            base: baseContext,
+            flag: flag,
+            organization: organization,
+            allUsers: users.map { UserResponse(user: $0) }
         )
         
         // Render the view

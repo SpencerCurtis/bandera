@@ -1,4 +1,5 @@
 #extend("layout"):
+    #export("title", "Add User Override")
     #export("content"):
         <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
             <div class="px-4 py-5 sm:px-6">
@@ -6,7 +7,7 @@
                     Add User Override for Feature Flag
                 </h3>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    #(flagDetail.key)
+                    #(flag.key)
                 </p>
             </div>
             <div class="border-t border-gray-200 dark:border-gray-700">
@@ -15,14 +16,14 @@
                     <div>
                         <label for="userId" class="block text-sm font-medium text-gray-700 dark:text-gray-300">User ID</label>
                         <input type="text" name="userId" id="userId" required 
-                            #if(!isAdmin):value="#(currentUserId)"#endif
+                            #if(!base.isAdmin):value="#(base.user.id)"#endif
                             class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
                             placeholder="Enter user UUID">
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             Enter any valid user UUID to create an override for that user
                         </p>
                         <p class="mt-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                            #if(!isAdmin):Your user ID: #(currentUserId)#endif
+                            #if(!base.isAdmin):Your user ID: #(base.user.id)#endif
                         </p>
                     </div>
 
@@ -48,14 +49,14 @@
                         <label for="value" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Override Value</label>
                         <input type="text" name="value" id="value" required 
                             class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
-                            placeholder="#(flagDetail.defaultValue)">
+                            placeholder="#(flag.defaultValue)">
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            Default value: #(flagDetail.defaultValue)
+                            Default value: #(flag.defaultValue)
                         </p>
                     </div>
                     
                     <div class="flex justify-between">
-                        <a href="/dashboard/feature-flags/#(flagDetail.id)" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <a href="/dashboard/organizations/#(organization.id)/flags/#(flag.id)" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Cancel
                         </a>
                         <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">

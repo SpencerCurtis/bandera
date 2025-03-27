@@ -37,21 +37,3 @@ extension Session {
         self.data["flash_message"] = message
     }
 }
-
-extension Request {
-    /// Get and clear flash messages, updating the view context with them
-    func getFlashMessages(_ context: inout ViewContext) {
-        if let flashType = session.data["flash_type"], let message = session.data["flash_message"] {
-            session.data["flash_type"] = nil
-            session.data["flash_message"] = nil
-            
-            switch FlashType(rawValue: flashType) {
-            case .error: context.errorMessage = message
-            case .success: context.successMessage = message
-            case .warning: context.warningMessage = message
-            case .info: context.infoMessage = message
-            case .none: break
-            }
-        }
-    }
-} 

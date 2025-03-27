@@ -177,16 +177,26 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
         // Handle 404 errors by showing the 404 page instead of redirecting to login
         if response.status == .notFound {
             do {
-                // Create context for the 404 page
-                let context = ViewContext(
+                // Create base context for the 404 page
+                let baseContext = BaseViewContext(
                     title: "Page Not Found",
                     isAuthenticated: request.auth.get(UserJWTPayload.self) != nil,
-                    isAdmin: request.auth.get(UserJWTPayload.self)?.isAdmin ?? false
+                    isAdmin: request.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
+                    user: try? await User.find(UUID(uuidString: request.auth.get(UserJWTPayload.self)?.subject.value ?? ""), on: request.db)
+                )
+                
+                // Create error context
+                let context = ErrorViewContext(
+                    base: baseContext,
+                    statusCode: 404,
+                    reason: "The page you're looking for could not be found.",
+                    recoverySuggestion: "Please check the URL and try again.",
+                    returnTo: true
                 )
                 
                 // Render the 404 page
                 response.headers.contentType = .html
-                return try await request.view.render("404", context).encodeResponse(for: request)
+                return try await request.view.render("error", context).encodeResponse(for: request)
             } catch {
                 // Fall back to the generic error page if rendering fails
             }
@@ -194,22 +204,55 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
         
         // Try to render the error page using Leaf
         do {
-            // Create view context
-            var context = ViewContext.error(
-                status: response.status.code,
-                reason: reason
-            )
-            
-            // Add debug info in development
-            if environment == .development {
-                context.debugInfo = String(describing: error)
+            // Get debug info in development
+            let debugInfo: String?
+            if self.environment == .development {
+                debugInfo = String(describing: error)
+            } else {
+                debugInfo = nil
             }
             
+            // Create base context
+            let baseContext = BaseViewContext(
+                title: "Error",
+                isAuthenticated: request.auth.get(UserJWTPayload.self) != nil,
+                isAdmin: request.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
+                user: try? await User.find(UUID(uuidString: request.auth.get(UserJWTPayload.self)?.subject.value ?? ""), on: request.db),
+                errorMessage: reason,
+                warningMessage: suggestion
+            )
+            
+            // Create error context
+            let context = ErrorViewContext(
+                base: baseContext,
+                statusCode: response.status.code,
+                reason: reason,
+                recoverySuggestion: suggestion,
+                requestId: requestId,
+                debugInfo: debugInfo,
+                returnTo: true
+            )
+            
+            // Render the error page
             response.headers.contentType = .html
             return try await request.view.render("error", context).encodeResponse(for: request)
         } catch {
-            // Fall back to plain text if rendering fails
-            return buildTextResponse(response, reason: reason, suggestion: suggestion)
+            // If rendering fails, return a basic HTML error page
+            response.headers.contentType = .html
+            response.body = .init(string: """
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <title>Error</title>
+                    </head>
+                    <body>
+                        <h1>Error</h1>
+                        <p>\(reason)</p>
+                        \(suggestion.map { "<p>\($0)</p>" } ?? "")
+                    </body>
+                </html>
+                """)
+            return response
         }
     }
     

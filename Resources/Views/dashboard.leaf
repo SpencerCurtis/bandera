@@ -24,9 +24,9 @@
                         </div>
                         
                         <div class="border-t border-gray-200 dark:border-gray-700">
-                            #if(flags):
+                            #if(featureFlags):
                                 <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-                                    #for(flag in flags):
+                                    #for(flag in featureFlags):
                                         #if(!flag.organizationId):
                                             <li>
                                                 <a href="/dashboard/feature-flags/#(flag.id)" class="block hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -95,9 +95,9 @@
                                 </div>
                                 
                                 <div class="border-t border-gray-200 dark:border-gray-700">
-                                    #if(flags):
+                                    #if(featureFlags):
                                         <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-                                            #for(flag in flags):
+                                            #for(flag in featureFlags):
                                                 #if(flag.organizationId == org.id):
                                                     <li>
                                                         <a href="/dashboard/organizations/#(org.id)/flags/#(flag.id)" class="block hover:bg-gray-50 dark:hover:bg-gray-700">

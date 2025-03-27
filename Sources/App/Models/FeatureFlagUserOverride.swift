@@ -1,10 +1,9 @@
 import Vapor
 import Fluent
 
+/// Represents a user-specific override for a feature flag
 final class FeatureFlagUserOverride: Model, Content {
     static let schema = "feature_flag_user_overrides"
-    
-    typealias IDValue = UUID
     
     @ID(key: .id)
     var id: UUID?
@@ -24,7 +23,7 @@ final class FeatureFlagUserOverride: Model, Content {
     @Timestamp(key: "updated_at", on: .update)
     var updatedAt: Date?
     
-    init() { }
+    init() {}
     
     init(id: UUID? = nil, featureFlagId: UUID, userId: UUID, value: String) {
         self.id = id
@@ -32,4 +31,7 @@ final class FeatureFlagUserOverride: Model, Content {
         self.$user.id = userId
         self.value = value
     }
-} 
+}
+
+// MARK: - Sendable Conformance
+extension FeatureFlagUserOverride: @unchecked Sendable {} 

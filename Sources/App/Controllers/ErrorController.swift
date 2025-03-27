@@ -13,18 +13,27 @@ struct ErrorController: RouteCollection {
         let message = req.session.data["error"] ?? "An error occurred"
         req.session.data["error"] = nil
         
-        // Create context with error message
-        let context = ViewContext(
+        // Get recovery suggestion if available
+        let suggestion = req.session.data["error_suggestion"]
+        req.session.data["error_suggestion"] = nil
+        
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Error",
             isAuthenticated: req.auth.get(UserJWTPayload.self) != nil,
             isAdmin: req.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
+            user: try? await User.find(UUID(uuidString: req.auth.get(UserJWTPayload.self)?.subject.value ?? ""), on: req.db),
             errorMessage: message,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A"
+            warningMessage: suggestion
+        )
+        
+        // Create error context
+        let context = ErrorViewContext(
+            base: baseContext,
+            statusCode: 500,
+            reason: message,
+            recoverySuggestion: suggestion,
+            returnTo: true
         )
         
         return try await req.view.render("error", context)

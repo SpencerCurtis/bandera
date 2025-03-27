@@ -55,19 +55,18 @@ struct DashboardController: RouteCollection {
         // Get the user's feature flags
         let featureFlags = try await req.services.featureFlagService.getAllFlags(userId: user.id!)
         
-        // Create view context
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Dashboard",
             isAuthenticated: true,
             isAdmin: user.isAdmin,
-            user: user,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            flags: featureFlags,
+            user: user
+        )
+        
+        // Create dashboard context with feature flag responses and organizations
+        let context = DashboardViewContext(
+            base: baseContext,
+            featureFlags: featureFlags.map { FeatureFlagResponse(flag: $0) },
             organizations: organizations.map { OrganizationDTO(from: $0) }
         )
         
@@ -77,85 +76,72 @@ struct DashboardController: RouteCollection {
     @Sendable
     func createFlag(req: Request) async throws -> View {
         // Get the authenticated user
-        guard let payload = req.auth.get(UserJWTPayload.self) else {
-            throw AuthenticationError.authenticationRequired
-        }
+        let user = try req.auth.require(User.self)
         
-        // Create the context for the form
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Create Feature Flag",
             isAuthenticated: true,
-            isAdmin: payload.isAdmin,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A"
+            isAdmin: user.isAdmin,
+            user: user
         )
         
-        // Create the form context
-        let formContext = FeatureFlagFormContext(
-            title: context.title,
-            isAuthenticated: true,
-            isAdmin: payload.isAdmin,
-            errorMessage: context.errorMessage,
-            recoverySuggestion: nil,
-            successMessage: context.successMessage,
-            flag: nil
+        // Get user's organizations for the dropdown
+        let organizationService = try req.organizationService()
+        let organizations = try await organizationService.getForUser(userId: user.id!)
+        let organizationDTOs = organizations.map { OrganizationDTO(from: $0) }
+        
+        // Create context
+        let context = OrganizationFlagFormViewContext(
+            base: baseContext,
+            organizations: organizationDTOs
         )
         
         // Render the feature flag form template
-        return try await req.view.render("organization-flag-form", formContext)
+        return try await req.view.render("organization-flag-form", context)
     }
     
+    /// Show form to edit a feature flag
     @Sendable
-    func editForm(req: Request) async throws -> View {
-        // Get the flag ID from the request parameters
-        guard let id = req.parameters.get("id", as: UUID.self) else {
-            throw ValidationError.failed("Invalid feature flag ID")
-        }
-        
+    private func editForm(req: Request) async throws -> View {
         // Get the authenticated user
-        guard let payload = req.auth.get(UserJWTPayload.self),
-              let userId = UUID(payload.subject.value) else {
-            throw AuthenticationError.authenticationRequired
+        let user = try req.auth.require(User.self)
+        
+        // Get the flag ID
+        guard let flagId = req.parameters.get("flagId", as: UUID.self) else {
+            throw ValidationError.failed("Invalid flag ID")
         }
         
-        // Get the feature flag
-        let flag = try await req.services.featureFlagService.getFlag(id: id, userId: userId)
-        if flag.id == nil {
-            throw ResourceError.notFound("feature flag")
+        // Get the feature flag details
+        let featureFlagService = req.services.featureFlagService
+        let flag = try await featureFlagService.getFlagDetails(id: flagId, userId: user.id!)
+        
+        // Get the organization if this is an organizational flag
+        let organization: OrganizationDTO?
+        if let organizationId = flag.organizationId {
+            let organizationService = try req.organizationService()
+            let org = try await organizationService.get(id: organizationId)
+            organization = organizationService.createOrganizationDTO(from: org)
+        } else {
+            organization = nil
         }
         
-        // Create the context with the feature flag
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "Edit Feature Flag",
             isAuthenticated: true,
-            isAdmin: payload.isAdmin,
-            environment: "development",
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A",
-            editing: true,
+            isAdmin: user.isAdmin,
+            user: user
+        )
+        
+        // Create context
+        let context = OrganizationFlagFormViewContext(
+            base: baseContext,
+            organization: organization,
             flag: flag
         )
         
-        // Create the form context
-        let formContext = FeatureFlagFormContext(
-            title: context.title,
-            isAuthenticated: true,
-            isAdmin: payload.isAdmin,
-            errorMessage: context.errorMessage,
-            recoverySuggestion: nil,
-            successMessage: context.successMessage,
-            flag: flag
-        )
-        
-        // Render the feature flag form template
-        return try await req.view.render("organization-flag-form", formContext)
+        return try await req.view.render("organization-flag-form", context)
     }
     
     // MARK: - Form Handlers
@@ -163,10 +149,7 @@ struct DashboardController: RouteCollection {
     @Sendable
     func handleCreateFlag(req: Request) async throws -> Response {
         // Get the authenticated user
-        guard let payload = req.auth.get(UserJWTPayload.self),
-              let userId = UUID(payload.subject.value) else {
-            throw AuthenticationError.authenticationRequired
-        }
+        let user = try req.auth.require(User.self)
         
         // Validate and decode the form data
         try CreateFeatureFlagRequest.validate(content: req)
@@ -174,27 +157,33 @@ struct DashboardController: RouteCollection {
         
         do {
             // Create the feature flag
-            _ = try await req.services.featureFlagService.createFlag(create, userId: userId)
+            _ = try await req.services.featureFlagService.createFlag(create, userId: user.id!)
             
             // Redirect to the dashboard with a success message
             req.session.flash(.success, "Feature flag created successfully")
             return req.redirect(to: "/dashboard")
         } catch {
             // If there's an error, render the form again with the error message
-            let context = ViewContext(
+            let baseContext = BaseViewContext(
                 title: "Create Feature Flag",
                 isAuthenticated: true,
-                isAdmin: payload.isAdmin,
-                errorMessage: error.localizedDescription,
-                environment: "development",
-                uptime: "N/A",
-                databaseConnected: true,
-                redisConnected: true,
-                memoryUsage: "N/A",
-                lastDeployment: "N/A"
+                isAdmin: user.isAdmin,
+                user: user,
+                errorMessage: error.localizedDescription
             )
             
-            return try await req.view.render("feature-flag-form", context).encodeResponse(for: req)
+            // Get user's organizations for the dropdown
+            let organizationService = try req.organizationService()
+            let organizations = try await organizationService.getForUser(userId: user.id!)
+            let organizationDTOs = organizations.map { OrganizationDTO(from: $0) }
+            
+            // Create context
+            let context = OrganizationFlagFormViewContext(
+                base: baseContext,
+                organizations: organizationDTOs
+            )
+            
+            return try await req.view.render("organization-flag-form", context).encodeResponse(for: req)
         }
     }
     

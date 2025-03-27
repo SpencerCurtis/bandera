@@ -24,11 +24,15 @@ struct HealthController: RouteCollection {
             ).encodeResponse(for: req)
         }
         
-        // For web requests, render the health page
-        let context = ViewContext(
+        // Create base context
+        let baseContext = BaseViewContext(
             title: "System Health",
-            isAuthenticated: req.auth.get(UserJWTPayload.self) != nil,
-            isAdmin: req.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
+            isAuthenticated: req.auth.get(UserJWTPayload.self) != nil
+        )
+        
+        // Create health view context
+        let context = HealthViewContext(
+            base: baseContext,
             environment: req.application.environment.name,
             uptime: formatUptime(from: startTime),
             databaseConnected: true, // TODO: Implement actual database check
