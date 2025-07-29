@@ -205,8 +205,9 @@ public func configure(_ app: Application) async throws {
         return req.redirect(to: "/auth/login")
     }
     
-    // Register the auth controller for login/signup
-    try app.register(collection: AuthController())
+    // Register the auth controllers for login/signup
+    try app.register(collection: AuthWebController())  // Web forms (login/signup pages)
+    try app.register(collection: AuthApiController())   // API endpoints (JSON responses)
     
     // Health check routes (no auth required)
     try app.register(collection: HealthController())
@@ -221,6 +222,9 @@ public func configure(_ app: Application) async throws {
     // API organization routes
     try api.register(collection: OrganizationController())
     
+    // API feature flag routes
+    try app.register(collection: FeatureFlagApiController())
+    
     // WebSocket routes
     try api.register(collection: WebSocketController())
     
@@ -231,9 +235,9 @@ public func configure(_ app: Application) async throws {
     let dashboard = web.grouped("dashboard")
     try dashboard.register(collection: DashboardController())
     
-    // Feature flag routes
+    // Feature flag routes (web interface)
     try dashboard.grouped("feature-flags")
-        .register(collection: FeatureFlagController())
+        .register(collection: FeatureFlagWebController())
     
     // Organization web routes
     try dashboard.grouped("organizations")

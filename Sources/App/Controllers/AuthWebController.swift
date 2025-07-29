@@ -2,7 +2,8 @@ import Vapor
 import Fluent
 import JWT
 
-final class AuthController: RouteCollection, @unchecked Sendable {
+/// Web-focused authentication controller that renders views and handles form submissions
+final class AuthWebController: RouteCollection, @unchecked Sendable {
     func boot(routes: RoutesBuilder) throws {
         let auth = routes.grouped("auth")
         
@@ -56,7 +57,7 @@ final class AuthController: RouteCollection, @unchecked Sendable {
         return try await req.view.render("signup", context)
     }
     
-    /// Handle user signup
+    /// Handle user signup via web form
     @Sendable
     static func signup(req: Request) async throws -> Response {
         do {
@@ -127,21 +128,21 @@ final class AuthController: RouteCollection, @unchecked Sendable {
         }
     }
     
-    /// Handle user login
+    /// Handle user login via web form
     @Sendable
     static func login(req: Request) async throws -> Response {
         do {
-            req.logger.debug("AuthController.login: Processing login request")
+            req.logger.debug("AuthWebController.login: Processing login request")
             try LoginRequest.validate(content: req)
             let loginRequest = try req.content.decode(LoginRequest.self)
             
             // Debug the login credentials
-            req.logger.debug("AuthController.login: Login attempt with email: \(loginRequest.email)")
+            req.logger.debug("AuthWebController.login: Login attempt with email: \(loginRequest.email)")
             
             guard let user = try await User.query(on: req.db)
                 .filter(\.$email == loginRequest.email)
                 .first() else {
-                req.logger.warning("AuthController.login: User not found with email: \(loginRequest.email)")
+                req.logger.warning("AuthWebController.login: User not found with email: \(loginRequest.email)")
                 
                 // Create error context
                 let baseContext = BaseViewContext(
@@ -156,10 +157,10 @@ final class AuthController: RouteCollection, @unchecked Sendable {
                 return try await req.view.render("login", context).encodeResponse(for: req)
             }
             
-            req.logger.debug("AuthController.login: Found user with ID: \(user.id?.uuidString ?? "nil")")
+            req.logger.debug("AuthWebController.login: Found user with ID: \(user.id?.uuidString ?? "nil")")
             
             guard try user.verify(password: loginRequest.password) else {
-                req.logger.warning("AuthController.login: Password verification failed for user: \(loginRequest.email)")
+                req.logger.warning("AuthWebController.login: Password verification failed for user: \(loginRequest.email)")
                 
                 // Create error context
                 let baseContext = BaseViewContext(
@@ -174,30 +175,30 @@ final class AuthController: RouteCollection, @unchecked Sendable {
                 return try await req.view.render("login", context).encodeResponse(for: req)
             }
             
-            req.logger.debug("AuthController.login: Password verification succeeded")
+            req.logger.debug("AuthWebController.login: Password verification succeeded")
             
             // Authenticate user for the current request
             req.auth.login(user)
-            req.logger.debug("AuthController.login: User authenticated in auth container")
+            req.logger.debug("AuthWebController.login: User authenticated in auth container")
             
             // Set session data
             req.session.data["user_id"] = user.id?.uuidString
             req.session.data["is_admin"] = String(user.isAdmin)
-            req.logger.debug("AuthController.login: Set session data: user_id=\(user.id?.uuidString ?? "nil"), is_admin=\(user.isAdmin)")
+            req.logger.debug("AuthWebController.login: Set session data: user_id=\(user.id?.uuidString ?? "nil"), is_admin=\(user.isAdmin)")
             
             // Create response with redirect
             let redirectTo = (try? req.content.get(String.self, at: "returnTo")) ?? "/dashboard"
             let response = req.redirect(to: redirectTo)
-            req.logger.debug("AuthController.login: Created redirect response to \(redirectTo)")
+            req.logger.debug("AuthWebController.login: Created redirect response to \(redirectTo)")
             
             // Create JWT payload directly from user model
             let payload = try UserJWTPayload(user: user)
-            req.logger.debug("AuthController.login: Created JWT payload with subject: \(payload.subject.value)")
+            req.logger.debug("AuthWebController.login: Created JWT payload with subject: \(payload.subject.value)")
             
             let token = try req.jwt.sign(payload)
             
             // Debug the JWT token being set
-            req.logger.debug("AuthController.login: Signed JWT token for user \(user.email): \(token.prefix(20))...")
+            req.logger.debug("AuthWebController.login: Signed JWT token for user \(user.email): \(token.prefix(20))...")
             
             // Set the token cookie with detailed debug info
             response.cookies[AppConstants.authCookieName] = HTTPCookies.Value(
@@ -210,12 +211,12 @@ final class AuthController: RouteCollection, @unchecked Sendable {
                 sameSite: .lax
             )
             
-            req.logger.debug("AuthController.login: Set cookie '\(AppConstants.authCookieName)' with expiry: \(Date().addingTimeInterval(TimeInterval(AppConstants.jwtExpirationDays * 24 * 60 * 60)))")
-            req.logger.debug("AuthController.login: Login process completed successfully")
+            req.logger.debug("AuthWebController.login: Set cookie '\(AppConstants.authCookieName)' with expiry: \(Date().addingTimeInterval(TimeInterval(AppConstants.jwtExpirationDays * 24 * 60 * 60)))")
+            req.logger.debug("AuthWebController.login: Login process completed successfully")
             
             return response
         } catch {
-            req.logger.error("AuthController.login: Error during login: \(error)")
+            req.logger.error("AuthWebController.login: Error during login: \(error)")
             
             // Create error context
             let baseContext = BaseViewContext(
@@ -231,7 +232,7 @@ final class AuthController: RouteCollection, @unchecked Sendable {
         }
     }
     
-    /// Handle user logout
+    /// Handle user logout via web
     @Sendable
     static func logout(req: Request) async throws -> Response {
         req.session.destroy()
