@@ -135,4 +135,190 @@ enum ErrorHandling {
             throw error
         }
     }
-} 
+}
+
+// MARK: - View Context Factory Methods
+
+extension ErrorHandling {
+    /// Creates a standardized BaseViewContext for error scenarios
+    /// - Parameters:
+    ///   - request: The current request
+    ///   - title: The page title (defaults to "Error")
+    ///   - errorMessage: Optional error message to include
+    ///   - warningMessage: Optional warning message to include
+    /// - Returns: A properly configured BaseViewContext
+    static func createBaseViewContext(
+        for request: Request, 
+        title: String = "Error",
+        errorMessage: String? = nil,
+        warningMessage: String? = nil
+    ) async -> BaseViewContext {
+        let user: User?
+        if let payload = request.auth.get(UserJWTPayload.self),
+           let userId = UUID(uuidString: payload.subject.value) {
+            user = try? await User.find(userId, on: request.db)
+        } else {
+            user = nil
+        }
+        
+        return BaseViewContext(
+            title: title,
+            isAuthenticated: request.auth.get(UserJWTPayload.self) != nil,
+            isAdmin: request.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
+            user: user,
+            errorMessage: errorMessage,
+            warningMessage: warningMessage
+        )
+    }
+    
+    /// Creates a standardized ErrorViewContext
+    /// - Parameters:
+    ///   - request: The current request
+    ///   - error: The error that occurred
+    ///   - statusCode: Optional custom status code (defaults to error's status)
+    ///   - returnTo: Whether to show return-to functionality
+    ///   - title: Optional custom page title
+    /// - Returns: A properly configured ErrorViewContext
+    static func createErrorViewContext(
+        for request: Request,
+        error: Error,
+        statusCode: UInt? = nil,
+        returnTo: Bool = true,
+        title: String = "Error"
+    ) async -> ErrorViewContext {
+        let banderaError = error as? (any BanderaErrorProtocol)
+        let abortError = error as? AbortError
+        
+        let errorStatusCode = statusCode ?? banderaError?.status.code ?? abortError?.status.code ?? 500
+        let reason = banderaError?.reason ?? abortError?.reason ?? "An error occurred"
+        let suggestion = banderaError?.recoverySuggestion
+        
+        let baseContext = await createBaseViewContext(
+            for: request,
+            title: title,
+            errorMessage: reason,
+            warningMessage: suggestion
+        )
+        
+        return ErrorViewContext(
+            base: baseContext,
+            statusCode: errorStatusCode,
+            reason: reason,
+            recoverySuggestion: suggestion,
+            returnTo: returnTo
+        )
+    }
+    
+    /// Creates a standardized error response for web forms
+    /// - Parameters:
+    ///   - request: The current request
+    ///   - template: The template to render
+    ///   - error: The error that occurred
+    ///   - contextFactory: A closure that creates the view context with error info
+    /// - Returns: A Response with the rendered error template
+    static func createFormErrorResponse<T: Content>(
+        for request: Request,
+        template: String,
+        error: Error,
+        contextFactory: (BaseViewContext) -> T
+    ) async throws -> Response {
+        let banderaError = error as? (any BanderaErrorProtocol)
+        let abortError = error as? AbortError
+        let errorMessage = banderaError?.reason ?? abortError?.reason ?? error.localizedDescription
+        
+        let baseContext = await createBaseViewContext(
+            for: request,
+            errorMessage: errorMessage
+        )
+        
+        let context = contextFactory(baseContext)
+        return try await request.view.render(template, context).encodeResponse(for: request)
+    }
+}
+
+// MARK: - Request Extensions for Error Handling
+
+extension Request {
+    /// Creates a standardized error response view
+    /// - Parameters:
+    ///   - error: The error that occurred
+    ///   - statusCode: Optional custom status code
+    ///   - returnTo: Whether to show return-to functionality
+    ///   - title: Optional custom page title
+    /// - Returns: A Response with the rendered error template
+    func createErrorResponse(
+        for error: Error,
+        statusCode: UInt? = nil,
+        returnTo: Bool = true,
+        title: String = "Error"
+    ) async throws -> Response {
+        let context = await ErrorHandling.createErrorViewContext(
+            for: self,
+            error: error,
+            statusCode: statusCode,
+            returnTo: returnTo,
+            title: title
+        )
+        
+        return try await self.view.render("error", context).encodeResponse(for: self)
+    }
+    
+    /// Creates a standardized base view context for the current request
+    /// - Parameters:
+    ///   - title: The page title
+    ///   - errorMessage: Optional error message
+    ///   - warningMessage: Optional warning message
+    /// - Returns: A properly configured BaseViewContext
+    func createBaseViewContext(
+        title: String,
+        errorMessage: String? = nil,
+        warningMessage: String? = nil
+    ) async -> BaseViewContext {
+        return await ErrorHandling.createBaseViewContext(
+            for: self,
+            title: title,
+            errorMessage: errorMessage,
+            warningMessage: warningMessage
+        )
+    }
+}
+
+// MARK: - Error Response Factories
+
+extension ErrorHandling {
+    /// Creates a standardized JSON error response
+    /// - Parameters:
+    ///   - error: The error that occurred
+    ///   - status: Optional custom HTTP status
+    /// - Returns: A standardized error response
+    static func createAPIErrorResponse(
+        for error: Error,
+        status: HTTPStatus? = nil
+    ) -> APIErrorResponse {
+        let banderaError = error as? (any BanderaErrorProtocol)
+        let abortError = error as? AbortError
+        
+        let errorStatus = status ?? banderaError?.status ?? abortError?.status ?? .internalServerError
+        let reason = banderaError?.reason ?? abortError?.reason ?? "An error occurred"
+        let suggestion = banderaError?.recoverySuggestion
+        
+        return APIErrorResponse(
+            error: true,
+            reason: reason,
+            statusCode: errorStatus.code,
+            recoverySuggestion: suggestion
+        )
+    }
+}
+
+/// Standardized error response structure for API endpoints
+struct APIErrorResponse: Content {
+    let error: Bool
+    let reason: String
+    let statusCode: UInt
+    var recoverySuggestion: String?
+    var requestId: String?
+    var debugInfo: String?
+}
+
+ 

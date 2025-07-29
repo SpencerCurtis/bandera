@@ -101,14 +101,14 @@ final class AuthWebController: RouteCollection, @unchecked Sendable {
             
             return response
         } catch {
-            // Create error context
-            let baseContext = BaseViewContext(
-                title: "Sign Up",
-                isAuthenticated: false,
-                errorMessage: error.localizedDescription
-            )
-            let context = RegisterViewContext.failedRegistration(base: baseContext)
-            return try await req.view.render("signup", context).encodeResponse(for: req)
+            // Use standardized error handling
+            return try await ErrorHandling.createFormErrorResponse(
+                for: req,
+                template: "signup",
+                error: error
+            ) { baseContext in
+                RegisterViewContext.failedRegistration(base: baseContext)
+            }
         }
     }
     
@@ -128,17 +128,17 @@ final class AuthWebController: RouteCollection, @unchecked Sendable {
                 .first() else {
                 req.logger.warning("AuthWebController.login: User not found with email: \(loginRequest.email)")
                 
-                // Create error context
-                let baseContext = BaseViewContext(
-                    title: "Login",
-                    isAuthenticated: false,
-                    errorMessage: "Invalid email or password"
-                )
-                let context = LoginViewContext.failedLogin(
-                    base: baseContext,
-                    returnTo: try? req.content.get(String.self, at: "returnTo")
-                )
-                return try await req.view.render("login", context).encodeResponse(for: req)
+                // Use standardized error handling
+                return try await ErrorHandling.createFormErrorResponse(
+                    for: req,
+                    template: "login",
+                    error: AuthenticationError.invalidCredentials
+                ) { baseContext in
+                    LoginViewContext.failedLogin(
+                        base: baseContext,
+                        returnTo: try? req.content.get(String.self, at: "returnTo")
+                    )
+                }
             }
             
             req.logger.debug("AuthWebController.login: Found user with ID: \(user.id?.uuidString ?? "nil")")
@@ -146,17 +146,17 @@ final class AuthWebController: RouteCollection, @unchecked Sendable {
             guard try user.verify(password: loginRequest.password) else {
                 req.logger.warning("AuthWebController.login: Password verification failed for user: \(loginRequest.email)")
                 
-                // Create error context
-                let baseContext = BaseViewContext(
-                    title: "Login",
-                    isAuthenticated: false,
-                    errorMessage: "Invalid email or password"
-                )
-                let context = LoginViewContext.failedLogin(
-                    base: baseContext,
-                    returnTo: try? req.content.get(String.self, at: "returnTo")
-                )
-                return try await req.view.render("login", context).encodeResponse(for: req)
+                // Use standardized error handling
+                return try await ErrorHandling.createFormErrorResponse(
+                    for: req,
+                    template: "login",
+                    error: AuthenticationError.invalidCredentials
+                ) { baseContext in
+                    LoginViewContext.failedLogin(
+                        base: baseContext,
+                        returnTo: try? req.content.get(String.self, at: "returnTo")
+                    )
+                }
             }
             
             req.logger.debug("AuthWebController.login: Password verification succeeded")

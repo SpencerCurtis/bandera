@@ -165,13 +165,10 @@ struct DashboardController: RouteCollection {
             req.session.flash(.success, "Feature flag created successfully")
             return req.redirect(to: "/dashboard")
         } catch {
-            // If there's an error, render the form again with the error message
-            let baseContext = BaseViewContext(
+            // For this complex form with async dependencies, handle manually but use standardized base context
+            let baseContext = await req.createBaseViewContext(
                 title: "Create Feature Flag",
-                isAuthenticated: true,
-                isAdmin: user.isAdmin,
-                user: user,
-                errorMessage: error.localizedDescription
+                errorMessage: (error as? (any BanderaErrorProtocol))?.reason ?? error.localizedDescription
             )
             
             // Get user's organizations for the dropdown

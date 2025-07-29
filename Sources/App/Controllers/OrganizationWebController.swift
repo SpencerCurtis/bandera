@@ -81,20 +81,13 @@ struct OrganizationWebController: RouteCollection {
                 req.logger.error("Abort error status: \(abortError.status)")
             }
             
-            // Create a detailed error context
-            let baseContext = BaseViewContext(
-                title: "Error",
-                isAuthenticated: false,
-                errorMessage: "Failed to load organization form: \(error.localizedDescription)"
+            // Use standardized error handling
+            let context = await ErrorHandling.createErrorViewContext(
+                for: req,
+                error: error,
+                title: "Organization Form Error"
             )
-            
-            let errorContext = ErrorViewContext(
-                base: baseContext,
-                statusCode: 500,
-                reason: "Failed to load organization form: \(error.localizedDescription)"
-            )
-            
-            return try await req.view.render("error", errorContext)
+            return try await req.view.render("error", context)
         }
     }
     
@@ -142,13 +135,11 @@ struct OrganizationWebController: RouteCollection {
             // Log the error
             req.logger.error("Error creating organization: \(error)")
             
-            // Render the form again with an error message
-            let context = ViewContext.error(
-                status: 500,
-                reason: "Failed to create organization: \(error.localizedDescription)"
+            // Use standardized error handling
+            return try await req.createErrorResponse(
+                for: error,
+                title: "Organization Creation Error"
             )
-            
-            return try await req.view.render("error", context).encodeResponse(for: req)
         }
     }
     
