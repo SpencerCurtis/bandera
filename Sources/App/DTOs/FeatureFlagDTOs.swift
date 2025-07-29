@@ -13,8 +13,9 @@ struct CreateFeatureFlagRequest: Content, Validatable {
     
     /// Validation rules for creating a feature flag.
     static func validations(_ validations: inout Validations) {
-        validations.add("key", as: String.self, is: !.empty && .alphanumeric)
+        validations.add("key", as: String.self, is: !.empty && .alphanumeric && .count(2...50))
         validations.add("defaultValue", as: String.self, is: !.empty)
+        // Description validation happens through sanitization in controllers
     }
 }
 
@@ -28,8 +29,9 @@ struct UpdateFeatureFlagRequest: Content, Validatable {
     
     /// Validation rules for updating a feature flag.
     static func validations(_ validations: inout Validations) {
-        validations.add("key", as: String.self, is: !.empty && .alphanumeric)
+        validations.add("key", as: String.self, is: !.empty && .alphanumeric && .count(2...50))
         validations.add("defaultValue", as: String.self, is: !.empty)
+        // Description validation happens through sanitization in controllers
     }
 }
 

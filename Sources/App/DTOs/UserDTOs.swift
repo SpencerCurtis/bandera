@@ -17,7 +17,7 @@ struct CreateUserRequest: Content, Validatable {
     /// Validation rules for creating a user
     static func validations(_ validations: inout Validations) {
         validations.add("email", as: String.self, is: .email)
-        validations.add("password", as: String.self, is: .count(8...))
+        validations.add("password", as: String.self, is: .count(8...128))
     }
 }
 
@@ -35,7 +35,7 @@ struct UpdateUserRequest: Content, Validatable {
     /// Validation rules for updating a user
     static func validations(_ validations: inout Validations) {
         validations.add("email", as: String.self, is: .email)
-        validations.add("password", as: String?.self, is: .nil || .count(8...))
+        validations.add("password", as: String?.self, is: .nil || .count(8...128))
     }
 }
 

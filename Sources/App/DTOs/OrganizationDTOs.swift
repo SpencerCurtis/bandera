@@ -96,25 +96,35 @@ struct OrganizationMemberDTO: Content {
 }
 
 /// DTO for creating a new organization
-struct CreateOrganizationDTO: Content {
+struct CreateOrganizationDTO: Content, Validatable {
     let name: String
     
     init(name: String) {
         self.name = name
+    }
+    
+    /// Validation rules for creating an organization
+    static func validations(_ validations: inout Validations) {
+        validations.add("name", as: String.self, is: !.empty && .count(2...100))
     }
 }
 
 /// DTO for updating an organization
-struct UpdateOrganizationDTO: Content {
+struct UpdateOrganizationDTO: Content, Validatable {
     let name: String
     
     init(name: String) {
         self.name = name
     }
+    
+    /// Validation rules for updating an organization
+    static func validations(_ validations: inout Validations) {
+        validations.add("name", as: String.self, is: !.empty && .count(2...100))
+    }
 }
 
 /// DTO for adding a user to an organization
-struct AddOrganizationUserDTO: Content {
+struct AddOrganizationUserDTO: Content, Validatable {
     let userId: UUID
     let role: String
     
@@ -122,29 +132,56 @@ struct AddOrganizationUserDTO: Content {
         self.userId = userId
         self.role = role
     }
+    
+    /// Validation rules for adding a user to an organization
+    static func validations(_ validations: inout Validations) {
+        // UUID validation happens automatically during decoding
+        validations.add("role", as: String.self, is: !.empty)
+    }
 }
 
 /// DTO for updating a user's role in an organization
-struct UpdateOrganizationUserRoleDTO: Content {
+struct UpdateOrganizationUserRoleDTO: Content, Validatable {
     let role: String
     
     init(role: String) {
         self.role = role
     }
+    
+    /// Validation rules for updating a user's role
+    static func validations(_ validations: inout Validations) {
+        validations.add("role", as: String.self, is: !.empty)
+    }
 }
 
 // Request DTOs
-struct CreateOrganizationRequest: Content {
+struct CreateOrganizationRequest: Content, Validatable {
     let name: String
+    
+    /// Validation rules for creating an organization
+    static func validations(_ validations: inout Validations) {
+        validations.add("name", as: String.self, is: !.empty && .count(2...100))
+    }
 }
 
-struct UpdateOrganizationRequest: Content {
+struct UpdateOrganizationRequest: Content, Validatable {
     let name: String
+    
+    /// Validation rules for updating an organization
+    static func validations(_ validations: inout Validations) {
+        validations.add("name", as: String.self, is: !.empty && .count(2...100))
+    }
 }
 
-struct AddUserToOrganizationRequest: Content {
+struct AddUserToOrganizationRequest: Content, Validatable {
     let userId: UUID
     let role: OrganizationRole
+    
+    /// Validation rules for adding a user to an organization
+    static func validations(_ validations: inout Validations) {
+        // UUID validation happens automatically during decoding
+        // No additional validation needed for UUID fields
+    }
 }
 
 struct OrganizationWithMembersDTO: Content {
