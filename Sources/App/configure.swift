@@ -156,6 +156,26 @@ public func configure(_ app: Application) async throws {
     // Configure Leaf for server-side rendering
     app.views.use(.leaf)
     
+    // MARK: - Rate Limiting Configuration
+    
+    // Create rate limit storage (Redis if available, otherwise in-memory)
+    let rateLimitStorage = RateLimitStorageFactory.create(app: app)
+    
+    // Configure different rate limit middleware for different endpoint types
+    let authRateLimit = RateLimitMiddleware(
+        maxRequests: 5,    // 5 attempts per minute for auth endpoints
+        per: 60,           // 60 seconds
+        storage: rateLimitStorage
+    )
+    
+    let apiRateLimit = RateLimitMiddleware(
+        maxRequests: 100,  // 100 requests per minute for general API
+        per: 60,           // 60 seconds
+        storage: rateLimitStorage
+    )
+    
+    app.logger.notice("Rate limiting configured - Auth: 5/min, API: 100/min")
+    
     // MARK: - Service Configuration
     
     // Initialize service container with the application
@@ -205,9 +225,32 @@ public func configure(_ app: Application) async throws {
         return req.redirect(to: "/auth/login")
     }
     
-    // Register the auth controllers for login/signup
-    try app.register(collection: AuthWebController())  // Web forms (login/signup pages)
-    try app.register(collection: AuthApiController())   // API endpoints (JSON responses)
+    // Register the auth controllers with rate limiting
+    // Web auth routes (forms) - apply rate limiting to POST endpoints only
+    let webAuth = app.grouped("auth")
+    webAuth.get("login", use: AuthWebController.loginPage)
+    webAuth.get("signup", use: AuthWebController.signupPage)
+    webAuth.get("logout", use: AuthWebController.logout)
+    
+    // Rate-limited web auth POST endpoints
+    let rateLimitedWebAuth = webAuth.grouped(authRateLimit)
+    rateLimitedWebAuth.post("login", use: AuthWebController.login)
+    rateLimitedWebAuth.post("signup", use: AuthWebController.signup)
+    
+    // API auth routes - apply rate limiting to authentication endpoints
+    let apiAuth = app.grouped("api", "auth")
+    let apiAuthController = AuthApiController()
+    
+    // Rate-limited API auth endpoints
+    let rateLimitedApiAuth = apiAuth.grouped(authRateLimit)
+    rateLimitedApiAuth.post("register", use: apiAuthController.register)
+    rateLimitedApiAuth.post("login", use: apiAuthController.login)
+    rateLimitedApiAuth.post("refresh", use: apiAuthController.refreshToken)
+    
+    // Protected API auth endpoints (no rate limiting needed as they require auth)
+    let protectedApiAuth = apiAuth.grouped(JWTAuthMiddleware.api)
+    protectedApiAuth.post("logout", use: apiAuthController.logout)
+    protectedApiAuth.get("me", use: apiAuthController.getCurrentUser)
     
     // Health check routes (no auth required)
     try app.register(collection: HealthController())
@@ -215,11 +258,11 @@ public func configure(_ app: Application) async throws {
     // Error controller (no auth required)
     try app.register(collection: ErrorController())
     
-    // API routes with JWT API middleware (throws instead of redirects)
-    let api = app.grouped("api")
+    // API routes with JWT API middleware and rate limiting (throws instead of redirects)
+    let api = app.grouped(apiRateLimit)
         .grouped(JWTAuthMiddleware.api)
     
-    // API organization routes
+    // API organization routes (OrganizationController already includes "api" prefix)
     try api.register(collection: OrganizationController())
     
     // API feature flag routes
