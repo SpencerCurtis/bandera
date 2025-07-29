@@ -2,11 +2,18 @@ import Vapor
 import JWT
 
 /// Protocol defining the interface for authentication service operations
-protocol AuthServiceProtocol {
-    /// Register a new user
+protocol AuthServiceProtocol: Sendable {
+    /// Register a new user (API version - doesn't create personal organization)
     /// - Parameter dto: The DTO with user registration data
     /// - Returns: The authentication response with token and user data
     func register(_ dto: RegisterRequest) async throws -> AuthResponse
+    
+    /// Register a new user for web (includes personal organization creation)
+    /// - Parameters:
+    ///   - dto: The DTO with user registration data
+    ///   - organizationService: The organization service for creating personal organization
+    /// - Returns: The authentication response with token and user data
+    func registerForWeb(_ dto: RegisterRequest, organizationService: OrganizationServiceProtocol) async throws -> AuthResponse
     
     /// Login a user
     /// - Parameter dto: The DTO with user login data

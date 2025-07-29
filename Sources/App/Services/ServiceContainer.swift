@@ -10,6 +10,7 @@ final class ServiceContainer: @unchecked Sendable {
     var featureFlagService: FeatureFlagServiceProtocol
     var authService: AuthServiceProtocol
     var organizationService: OrganizationServiceProtocol
+    var userService: UserServiceProtocol
     
     /// Initialize with all services and repositories
     /// - Parameters:
@@ -20,6 +21,7 @@ final class ServiceContainer: @unchecked Sendable {
     ///   - featureFlagService: The feature flag service
     ///   - authService: The authentication service
     ///   - organizationService: The organization service
+    ///   - userService: The user service
     init(
         webSocketService: WebSocketServiceProtocol,
         featureFlagRepository: FeatureFlagRepositoryProtocol,
@@ -27,7 +29,8 @@ final class ServiceContainer: @unchecked Sendable {
         organizationRepository: OrganizationRepositoryProtocol,
         featureFlagService: FeatureFlagServiceProtocol,
         authService: AuthServiceProtocol,
-        organizationService: OrganizationServiceProtocol
+        organizationService: OrganizationServiceProtocol,
+        userService: UserServiceProtocol
     ) {
         self.webSocketService = webSocketService
         self.featureFlagRepository = featureFlagRepository
@@ -36,6 +39,7 @@ final class ServiceContainer: @unchecked Sendable {
         self.featureFlagService = featureFlagService
         self.authService = authService
         self.organizationService = organizationService
+        self.userService = userService
     }
     
     /// Initialize with the Vapor application
@@ -60,6 +64,9 @@ final class ServiceContainer: @unchecked Sendable {
             organizationRepository: organizationRepository,
             userRepository: userRepository
         )
+        let userService = UserService(
+            userRepository: userRepository
+        )
         
         // Initialize with all services and repositories
         self.init(
@@ -69,7 +76,8 @@ final class ServiceContainer: @unchecked Sendable {
             organizationRepository: organizationRepository,
             featureFlagService: featureFlagService,
             authService: authService,
-            organizationService: organizationService
+            organizationService: organizationService,
+            userService: userService
         )
     }
 }
@@ -249,6 +257,9 @@ private struct EmptyAuthService: AuthServiceProtocol {
     func register(_ dto: RegisterRequest) async throws -> AuthResponse {
         AuthResponse(token: "", user: UserResponse(user: User(email: "", passwordHash: "", isAdmin: false)))
     }
+    func registerForWeb(_ dto: RegisterRequest, organizationService: OrganizationServiceProtocol) async throws -> AuthResponse {
+        AuthResponse(token: "", user: UserResponse(user: User(email: "", passwordHash: "", isAdmin: false)))
+    }
     func login(_ dto: LoginRequest) async throws -> AuthResponse {
         AuthResponse(token: "", user: UserResponse(user: User(email: "", passwordHash: "", isAdmin: false)))
     }
@@ -259,6 +270,10 @@ private struct EmptyAuthService: AuthServiceProtocol {
 }
 
 private struct EmptyOrganizationService: OrganizationServiceProtocol {
+    func createPersonalOrganization(for userEmail: String, userId: UUID) async throws -> Organization {
+        Organization(name: "")
+    }
+    
     func create(_ dto: CreateOrganizationRequest, creatorId: UUID) async throws -> Organization {
         Organization(name: "")
     }
@@ -299,5 +314,25 @@ private struct EmptyOrganizationService: OrganizationServiceProtocol {
     
     func createOrganizationDTO(from organization: Organization) -> OrganizationDTO {
         OrganizationDTO(id: organization.id ?? UUID(), name: organization.name, isPersonal: false, createdAt: organization.createdAt, updatedAt: organization.updatedAt)
+    }
+}
+
+private struct EmptyUserService: UserServiceProtocol {
+    func toggleAdminStatus(userId: UUID, requesterId: UUID) async throws -> User {
+        User(email: "", passwordHash: "", isAdmin: false)
+    }
+    
+    func updateUser(userId: UUID, updates: UserUpdateRequest, requesterId: UUID) async throws -> User {
+        User(email: "", passwordHash: "", isAdmin: false)
+    }
+    
+    func getHealthInfo() async -> AdminDashboardViewContext.HealthInfo {
+        AdminDashboardViewContext.HealthInfo(
+            uptime: "N/A",
+            databaseConnected: false,
+            redisConnected: false,
+            memoryUsage: "N/A",
+            lastDeployment: "N/A"
+        )
     }
 }

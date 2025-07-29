@@ -51,7 +51,14 @@ Based on the comprehensive codebase audit, here are the action items organized b
   - [x] Split FeatureFlagController into FeatureFlagApiController + FeatureFlagWebController ✅ **COMPLETE!**
   - [x] Move view rendering logic to dedicated web controllers ✅ **IMPLEMENTED!**
   - [x] Split massive OrganizationWebController (979 lines) into focused components ✅ **COMPLETE!**
-  - [ ] Extract business logic to services (some progress made)
+  - [x] **Extract business logic to services** ✅ **COMPLETE!**
+  - [x] Created UserService for user management operations (admin toggle, user updates)
+  - [x] Moved direct database operations from AuthWebController to AuthService
+  - [x] Created AuthService.registerForWeb() method for web registration with personal organization
+  - [x] Extracted personal organization creation logic to OrganizationService.createPersonalOrganization()
+  - [x] Moved health check logic from AdminController to UserService.getHealthInfo()
+  - [x] Fixed unused organizationId variable warning in OrganizationFlagWebController
+  - [x] Updated ServiceContainer to include UserService and new service methods
 - [ ] Implement caching for feature flags
   - [ ] Redis caching for user feature flags
   - [ ] Cache invalidation strategy

@@ -3,6 +3,9 @@ import Vapor
 
 /// Protocol defining organization service operations
 protocol OrganizationServiceProtocol {
+    /// Create a personal organization for a new user
+    func createPersonalOrganization(for userEmail: String, userId: UUID) async throws -> Organization
+    
     /// Create a new organization
     func create(_ dto: CreateOrganizationRequest, creatorId: UUID) async throws -> Organization
     
@@ -45,6 +48,13 @@ struct OrganizationService: OrganizationServiceProtocol {
     init(organizationRepository: OrganizationRepositoryProtocol, userRepository: UserRepositoryProtocol) {
         self.organizationRepository = organizationRepository
         self.userRepository = userRepository
+    }
+    
+    /// Create a personal organization for a new user
+    func createPersonalOrganization(for userEmail: String, userId: UUID) async throws -> Organization {
+        let personalOrgName = "\(userEmail.split(separator: "@").first?.trimmingCharacters(in: .whitespaces) ?? "User")'s Personal Organization"
+        let dto = CreateOrganizationRequest(name: personalOrgName)
+        return try await create(dto, creatorId: userId)
     }
     
     func create(_ dto: CreateOrganizationRequest, creatorId: UUID) async throws -> Organization {

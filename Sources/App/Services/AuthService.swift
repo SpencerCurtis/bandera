@@ -18,7 +18,7 @@ struct AuthService: AuthServiceProtocol {
         self.jwtSigner = jwtSigner
     }
     
-    /// Register a new user
+    /// Register a new user (API version - doesn't create personal organization)
     /// - Parameter dto: The DTO with user registration data
     /// - Returns: The authentication response with token and user data
     func register(_ dto: RegisterRequest) async throws -> AuthResponse {
@@ -112,5 +112,39 @@ struct AuthService: AuthServiceProtocol {
         
         // Otherwise, insufficient permissions
         throw AuthenticationError.insufficientPermissions
+    }
+    
+    /// Register a new user for web (includes personal organization creation)
+    /// - Parameters:
+    ///   - dto: The DTO with user registration data
+    ///   - organizationService: The organization service for creating personal organization
+    /// - Returns: The authentication response with token and user data
+    func registerForWeb(_ dto: RegisterRequest, organizationService: OrganizationServiceProtocol) async throws -> AuthResponse {
+        // Check if user with same email exists
+        if try await userRepository.exists(email: dto.email) {
+            throw ResourceError.alreadyExists("User with email '\(dto.email)'")
+        }
+        
+        // Create new user
+        let user = User(
+            email: dto.email,
+            passwordHash: try Bcrypt.hash(dto.password),
+            isAdmin: dto.isAdmin
+        )
+        
+        // Save user
+        try await userRepository.save(user)
+        
+        // Create personal organization
+        let _ = try await organizationService.createPersonalOrganization(for: user.email, userId: user.id!)
+        
+        // Generate token
+        let token = try generateToken(for: user)
+        
+        // Return response
+        return AuthResponse(
+            token: token,
+            user: UserResponse(user: user)
+        )
     }
 } 

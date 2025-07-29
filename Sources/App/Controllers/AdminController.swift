@@ -44,22 +44,21 @@ struct AdminController: RouteCollection {
             throw AuthenticationError.authenticationRequired
         }
         
+        // Get user through repository instead of direct database access
+        let userId = UUID(uuidString: payload.subject.value)!
+        let user = try await req.services.userRepository.get(id: userId)
+        
         // Create base context
         let baseContext = BaseViewContext(
             title: "Admin Dashboard",
             isAuthenticated: true,
             isAdmin: payload.isAdmin,
-            user: try await User.find(UUID(uuidString: payload.subject.value), on: req.db)
+            user: user
         )
         
-        // Create health info
-        let healthInfo = AdminDashboardViewContext.HealthInfo(
-            uptime: "N/A",
-            databaseConnected: true,
-            redisConnected: true,
-            memoryUsage: "N/A",
-            lastDeployment: "N/A"
-        )
+        // Get health info from UserService
+        let userService = req.services.userService
+        let healthInfo = await userService.getHealthInfo()
         
         // Create admin dashboard context with pagination
         let context = AdminDashboardViewContext(
@@ -85,14 +84,15 @@ struct AdminController: RouteCollection {
             throw Abort(.badRequest, reason: "Invalid user ID")
         }
         
-        // Get the target user
-        guard let user = try await User.find(userId, on: req.db) else {
-            throw Abort(.notFound, reason: "User not found")
+        // Get the authenticated admin user
+        guard let payload = req.auth.get(UserJWTPayload.self) else {
+            throw AuthenticationError.authenticationRequired
         }
+        let requesterId = UUID(uuidString: payload.subject.value)!
         
-        // Toggle admin status
-        user.isAdmin.toggle()
-        try await user.save(on: req.db)
+        // Use UserService to toggle admin status
+        let userService = req.services.userService
+        let user = try await userService.toggleAdminStatus(userId: userId, requesterId: requesterId)
         
         // Add success message
         req.session.flash(.success, "\(user.email) admin status updated successfully")

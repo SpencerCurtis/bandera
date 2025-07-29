@@ -65,32 +65,17 @@ final class AuthWebController: RouteCollection, @unchecked Sendable {
             try RegisterRequest.validate(content: req)
             let registerRequest = try req.content.decode(RegisterRequest.self)
             
-            // Check if user already exists
-            if try await User.query(on: req.db)
-                .filter(\.$email == registerRequest.email)
-                .first() != nil {
-                // Create error context
-                let baseContext = BaseViewContext(
-                    title: "Sign Up",
-                    isAuthenticated: false,
-                    errorMessage: "A user with this email already exists"
-                )
-                let context = RegisterViewContext.failedRegistration(base: baseContext)
-                return try await req.view.render("signup", context).encodeResponse(for: req)
+            // Use AuthService for registration (includes personal organization creation)
+            let authService = req.services.authService
+            let organizationService = req.services.organizationService
+            let authResponse = try await authService.registerForWeb(registerRequest, organizationService: organizationService)
+            
+            req.logger.info("Web: Created user and personal organization for \(authResponse.user.email)")
+            
+            // Get the created user for authentication
+            guard let user = try await req.services.userRepository.getByEmail(registerRequest.email) else {
+                throw AuthenticationError.authenticationRequired
             }
-            
-            // Create and save the user
-            let user = try User.create(from: registerRequest)
-            try await user.save(on: req.db)
-            
-            // Create personal organization for the user
-            let personalOrgName = "\(registerRequest.email.split(separator: "@").first?.trimmingCharacters(in: .whitespaces) ?? "User")'s Personal Organization"
-            let organizationService = try req.organizationService()
-            let personalOrg = try await organizationService.create(
-                CreateOrganizationRequest(name: personalOrgName),
-                creatorId: user.id!
-            )
-            req.logger.info("Created personal organization \(personalOrg.id!) for user \(user.id!)")
             
             // Authenticate user for the current request
             req.auth.login(user)
@@ -99,9 +84,8 @@ final class AuthWebController: RouteCollection, @unchecked Sendable {
             req.session.data["user_id"] = user.id?.uuidString
             req.session.data["is_admin"] = String(user.isAdmin)
             
-            // Create JWT payload and token
-            let payload = try UserJWTPayload(user: user)
-            let token = try req.jwt.sign(payload)
+            // Use the token from the auth response
+            let token = authResponse.token
             
             // Set the token cookie
             let response = req.redirect(to: "/dashboard")
