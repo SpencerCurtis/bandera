@@ -9,8 +9,19 @@ protocol OrganizationRepositoryProtocol {
     /// Get an organization by ID
     func find(id: UUID) async throws -> Organization?
     
-    /// Get all organizations
-    func all() async throws -> [Organization]
+    /// Get all organizations with pagination (recommended default)
+    /// - Parameters:
+    ///   - params: Pagination parameters
+    ///   - baseUrl: Base URL for pagination links
+    /// - Returns: Paginated organizations
+    func all(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<Organization>
+    
+    /// Get ALL organizations without pagination
+    /// ⚠️ DEPRECATED: Use all(params:baseUrl:) instead for better performance
+    /// ⚠️ WARNING: Use only for small, bounded datasets or migrations
+    /// - Returns: All organizations (use sparingly!)
+    @available(*, deprecated, message: "Use all(params:baseUrl:) instead for better performance and safety")
+    func allUnpaginated() async throws -> [Organization]
     
     /// Update an organization
     func update(_ organization: Organization) async throws
@@ -20,6 +31,14 @@ protocol OrganizationRepositoryProtocol {
     
     /// Get organizations for a user
     func getForUser(userId: UUID) async throws -> [Organization]
+    
+    /// Get organizations for a user with pagination
+    /// - Parameters:
+    ///   - userId: The unique identifier of the user
+    ///   - params: Pagination parameters
+    ///   - baseUrl: Base URL for pagination links
+    /// - Returns: Paginated organizations for the user
+    func getForUser(userId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<Organization>
     
     /// Add a user to an organization
     func addUser(to organizationId: UUID, userId: UUID, role: OrganizationRole) async throws -> OrganizationUser
@@ -60,7 +79,19 @@ struct OrganizationRepository: OrganizationRepositoryProtocol {
         try await Organization.find(id, on: db)
     }
     
-    func all() async throws -> [Organization] {
+    func all(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<Organization> {
+        let query = Organization.query(on: db)
+        return try await PaginationUtilities.paginate(
+            query,
+            params: params,
+            sortBy: \Organization.$name,
+            direction: .ascending,
+            baseUrl: baseUrl
+        )
+    }
+    
+    @available(*, deprecated, message: "Use all(params:baseUrl:) instead for better performance and safety")
+    func allUnpaginated() async throws -> [Organization] {
         try await Organization.query(on: db).all()
     }
     
@@ -78,6 +109,34 @@ struct OrganizationRepository: OrganizationRepositoryProtocol {
             .with(\.$organization)
             .all()
             .map { $0.organization }
+    }
+    
+    func getForUser(userId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<Organization> {
+        // Get total count first
+        let totalItems = try await OrganizationUser.query(on: db)
+            .filter(\.$user.$id, .equal, userId)
+            .count()
+        
+        // Get paginated memberships with organization data
+        let memberships = try await OrganizationUser.query(on: db)
+            .filter(\.$user.$id, .equal, userId)
+            .with(\.$organization)
+            .offset(params.offset)
+            .limit(params.perPage)
+            .all()
+        
+        // Extract organizations
+        let organizations = memberships.map { $0.organization }
+        
+        // Create pagination context
+        let pagination = PaginationContext(
+            currentPage: params.page,
+            totalItems: totalItems,
+            perPage: params.perPage,
+            baseUrl: baseUrl
+        )
+        
+        return PaginatedResult(data: organizations, pagination: pagination)
     }
     
     func addUser(to organizationId: UUID, userId: UUID, role: OrganizationRole) async throws -> OrganizationUser {
@@ -111,10 +170,13 @@ struct OrganizationRepository: OrganizationRepositoryProtocol {
         try await membership.delete(on: db)
     }
     
+    /// Get all members of an organization
+    /// ✅ OPTIMIZED: Uses eager loading to prevent N+1 queries
     func getMembers(organizationId: UUID) async throws -> [OrganizationUser] {
         try await OrganizationUser.query(on: db)
             .filter(\.$organization.$id, .equal, organizationId)
-            .with(\.$user)
+            .with(\.$user)         // ✅ Eager load user relationship
+            .with(\.$organization) // ✅ Eager load organization relationship
             .all()
     }
     
@@ -137,19 +199,13 @@ struct OrganizationRepository: OrganizationRepositoryProtocol {
     }
     
     /// Get all memberships for a user
+    /// ✅ OPTIMIZED: Uses eager loading to prevent N+1 queries
     func getMembershipsForUser(userId: UUID) async throws -> [OrganizationUser] {
-        print("OrganizationRepository.getMembershipsForUser: Searching for memberships for userId: \(userId)")
-        
-        let memberships = try await OrganizationUser.query(on: db)
+        return try await OrganizationUser.query(on: db)
             .filter(\.$user.$id == userId)
+            .with(\.$organization)  // ✅ Eager load organization relationship
+            .with(\.$user)         // ✅ Eager load user relationship
             .all()
-        
-        print("OrganizationRepository.getMembershipsForUser: Found \(memberships.count) memberships")
-        for membership in memberships {
-            print("OrganizationRepository.getMembershipsForUser: Membership: id=\(membership.id?.uuidString ?? "nil"), orgId=\(membership.$organization.id), userId=\(membership.$user.id)")
-        }
-        
-        return memberships
     }
     
     /// Get all memberships for an organization

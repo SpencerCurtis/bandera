@@ -16,17 +16,28 @@ struct AdminController: RouteCollection {
     /// List all users with their admin status
     @Sendable
     func listUsers(req: Request) async throws -> View {
-        // Get all users
-        let users = try await User.query(on: req.db)
-            .sort(\.$email)
-            .all()
-            .map { UserResponse(user: $0) }
+        // Get pagination parameters
+        let userParams = PaginationParams.from(req)
+        let baseUrl = req.url.string
         
-        // Get all organizations
-        let organizations = try await Organization.query(on: req.db)
-            .sort(\.$name)
-            .all()
-            .map { OrganizationDTO(from: $0) }
+        // Get user repository
+        let userRepository = req.services.userRepository
+        
+        // Get paginated users
+        let paginatedUsers = try await userRepository.getAllUsers(
+            params: userParams,
+            baseUrl: baseUrl
+        )
+        let users = paginatedUsers.data.map { UserResponse(user: $0) }
+        
+        // Get organizations with pagination (limit to reasonable size for admin dashboard)
+        let orgParams = PaginationParams(page: 1, perPage: 100) // Admin view can show more
+        let organizationRepository = req.services.organizationRepository
+        let paginatedOrgs = try await organizationRepository.all(
+            params: orgParams,
+            baseUrl: req.url.string
+        )
+        let organizations = paginatedOrgs.data.map { OrganizationDTO(from: $0) }
         
         // Get the authenticated user
         guard let payload = req.auth.get(UserJWTPayload.self) else {
@@ -50,12 +61,14 @@ struct AdminController: RouteCollection {
             lastDeployment: "N/A"
         )
         
-        // Create admin dashboard context
+        // Create admin dashboard context with pagination
         let context = AdminDashboardViewContext(
             base: baseContext,
             users: users,
             organizations: organizations,
-            healthInfo: healthInfo
+            healthInfo: healthInfo,
+            usersPagination: paginatedUsers.pagination,
+            organizationsPagination: paginatedOrgs.pagination
         )
         
         // Render the admin dashboard template

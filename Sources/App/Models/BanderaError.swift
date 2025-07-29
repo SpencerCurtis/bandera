@@ -75,7 +75,7 @@ enum NotFoundError: BanderaErrorProtocol {
 // MARK: - Authentication Errors
 
 /// Errors related to authentication and authorization
-enum AuthenticationError: BanderaErrorProtocol {
+enum AuthenticationError: BanderaErrorProtocol, Equatable {
     case invalidCredentials
     case authenticationRequired
     case insufficientPermissions

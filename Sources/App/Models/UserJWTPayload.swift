@@ -22,7 +22,7 @@ struct UserJWTPayload: JWTPayload, Authenticatable, SessionAuthenticatable {
         self.subject = SubjectClaim(value: user.id?.uuidString ?? "")
         
         // Use standard JWT timestamp format (seconds since epoch)
-        let expirationTime = Date().addingTimeInterval(7 * 86400) // 7 days
+        let expirationTime = Date().addingTimeInterval(TimeInterval(AppConstants.jwtExpirationDays * 86400))
         self.expiration = ExpirationClaim(value: expirationTime)
         
         self.isAdmin = user.isAdmin

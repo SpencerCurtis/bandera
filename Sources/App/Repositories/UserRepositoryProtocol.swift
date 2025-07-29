@@ -33,9 +33,19 @@ protocol UserRepositoryProtocol {
     /// - Parameter user: The user to delete
     func delete(_ user: User) async throws
     
-    /// Get all users
-    /// - Returns: All users in the system
-    func getAllUsers() async throws -> [User]
+    /// Get all users with pagination (recommended default)
+    /// - Parameters:
+    ///   - params: Pagination parameters
+    ///   - baseUrl: Base URL for pagination links
+    /// - Returns: Paginated users
+    func getAllUsers(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<User>
+    
+    /// Get ALL users without pagination
+    /// ⚠️ DEPRECATED: Use getAllUsers(params:baseUrl:) instead for better performance
+    /// ⚠️ WARNING: Use only for small, bounded datasets or migrations
+    /// - Returns: All users in the system (use sparingly!)
+    @available(*, deprecated, message: "Use getAllUsers(params:baseUrl:) instead for better performance and safety")
+    func getAllUsersUnpaginated() async throws -> [User]
     
     /// Find a user by email
     /// - Parameter email: The email to search for

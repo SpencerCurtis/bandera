@@ -118,9 +118,19 @@ private struct EmptyFeatureFlagRepository: FeatureFlagRepositoryProtocol {
     func update(_ flag: FeatureFlag) async throws -> FeatureFlag { flag }
     func get(id: UUID) async throws -> FeatureFlag? { nil }
     func getAll() async throws -> [FeatureFlag] { [] }
-    func all() async throws -> [FeatureFlag] { [] }
+    func all(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag> {
+        PaginatedResult(data: [], pagination: PaginationContext(currentPage: 1, totalItems: 0, perPage: 25, baseUrl: baseUrl))
+    }
+    @available(*, deprecated, message: "Use all(params:baseUrl:) instead for better performance and safety")
+    func allUnpaginated() async throws -> [FeatureFlag] { [] }
     func getAllForUser(userId: UUID) async throws -> [FeatureFlag] { [] }
+    func getAllForUser(userId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag> {
+        PaginatedResult(data: [], pagination: PaginationContext(currentPage: 1, totalItems: 0, perPage: 25, baseUrl: baseUrl))
+    }
     func getAllForOrganization(organizationId: UUID) async throws -> [FeatureFlag] { [] }
+    func getAllForOrganization(organizationId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag> {
+        PaginatedResult(data: [], pagination: PaginationContext(currentPage: 1, totalItems: 0, perPage: 25, baseUrl: baseUrl))
+    }
     func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer { 
         FeatureFlagsContainer(flags: [:]) 
     }
@@ -145,7 +155,11 @@ private struct EmptyUserRepository: UserRepositoryProtocol {
     func getByEmail(_ email: String) async throws -> User? { nil }
     func findByEmail(_ email: String) async throws -> User? { nil }
     func delete(_ user: User) async throws {}
-    func getAllUsers() async throws -> [User] { [] }
+    func getAllUsers(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<User> {
+        PaginatedResult(data: [], pagination: PaginationContext(currentPage: 1, totalItems: 0, perPage: 25, baseUrl: baseUrl))
+    }
+    @available(*, deprecated, message: "Use getAllUsers(params:baseUrl:) instead for better performance and safety")
+    func getAllUsersUnpaginated() async throws -> [User] { [] }
 }
 
 private struct EmptyFeatureFlagService: FeatureFlagServiceProtocol {

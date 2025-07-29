@@ -12,14 +12,32 @@ protocol FeatureFlagRepositoryProtocol {
     /// - Returns: The feature flag if found, nil otherwise
     func get(id: UUID) async throws -> FeatureFlag?
     
-    /// Get all feature flags
-    /// - Returns: All feature flags
-    func all() async throws -> [FeatureFlag]
+    /// Get all feature flags with pagination (recommended default)
+    /// - Parameters:
+    ///   - params: Pagination parameters
+    ///   - baseUrl: Base URL for pagination links
+    /// - Returns: Paginated feature flags
+    func all(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag>
+    
+    /// Get ALL feature flags without pagination
+    /// ⚠️ DEPRECATED: Use all(params:baseUrl:) instead for better performance
+    /// ⚠️ WARNING: Use only for small, bounded datasets or migrations
+    /// - Returns: All feature flags (use sparingly!)
+    @available(*, deprecated, message: "Use all(params:baseUrl:) instead for better performance and safety")
+    func allUnpaginated() async throws -> [FeatureFlag]
     
     /// Get all feature flags for a user
     /// - Parameter userId: The unique identifier of the user
     /// - Returns: All feature flags for the user
     func getAllForUser(userId: UUID) async throws -> [FeatureFlag]
+    
+    /// Get all feature flags for a user with pagination
+    /// - Parameters:
+    ///   - userId: The unique identifier of the user
+    ///   - params: Pagination parameters
+    ///   - baseUrl: Base URL for pagination links
+    /// - Returns: Paginated feature flags for the user
+    func getAllForUser(userId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag>
     
     /// Get all feature flags with their overrides for a user
     /// - Parameter userId: The unique identifier of the user
@@ -69,4 +87,12 @@ protocol FeatureFlagRepositoryProtocol {
     /// - Parameter organizationId: The unique identifier of the organization
     /// - Returns: All feature flags for the organization
     func getAllForOrganization(organizationId: UUID) async throws -> [FeatureFlag]
+    
+    /// Get all feature flags for an organization with pagination
+    /// - Parameters:
+    ///   - organizationId: The unique identifier of the organization
+    ///   - params: Pagination parameters
+    ///   - baseUrl: Base URL for pagination links
+    /// - Returns: Paginated feature flags for the organization
+    func getAllForOrganization(organizationId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag>
 } 

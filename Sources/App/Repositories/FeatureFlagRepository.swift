@@ -14,14 +14,43 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
         try await FeatureFlag.find(id, on: database)
     }
     
-    func all() async throws -> [FeatureFlag] {
-        try await FeatureFlag.query(on: database).all()
+    func all(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag> {
+        let query = FeatureFlag.query(on: database)
+        return try await PaginationUtilities.paginate(
+            query,
+            params: params,
+            sortBy: \FeatureFlag.$key,
+            direction: .ascending,
+            baseUrl: baseUrl
+        )
+    }
+    
+    @available(*, deprecated, message: "Use all(params:baseUrl:) instead for better performance and safety")
+    func allUnpaginated() async throws -> [FeatureFlag] {
+        // Phase 3: Add safety limit
+        let count = try await FeatureFlag.query(on: database).count()
+        guard count <= 1000 else {
+            throw Abort(.payloadTooLarge, reason: "Dataset too large (\(count) items). Use paginated method instead.")
+        }
+        return try await FeatureFlag.query(on: database).all()
     }
     
     func getAllForUser(userId: UUID) async throws -> [FeatureFlag] {
         try await FeatureFlag.query(on: database)
             .filter(\FeatureFlag.$userId, .equal, userId)
             .all()
+    }
+    
+    func getAllForUser(userId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag> {
+        let query = FeatureFlag.query(on: database)
+            .filter(\FeatureFlag.$userId, .equal, userId)
+        return try await PaginationUtilities.paginate(
+            query,
+            params: params,
+            sortBy: \FeatureFlag.$key,
+            direction: .ascending,
+            baseUrl: baseUrl
+        )
     }
     
     func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer {
@@ -77,17 +106,12 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
     }
     
     /// Get all user overrides for a feature flag
+    /// ✅ OPTIMIZED: Uses eager loading to prevent N+1 queries
     func getOverrides(flagId: UUID) async throws -> [UserFeatureFlag] {
-        let overrides = try await UserFeatureFlag.query(on: database)
+        return try await UserFeatureFlag.query(on: database)
             .filter(\.$featureFlag.$id == flagId)
+            .with(\.$user)  // ✅ Eager load user relationship in single query
             .all()
-            
-        // Load user relationships for each override
-        for override in overrides {
-            try await override.$user.load(on: database)
-        }
-        
-        return overrides
     }
     
     /// Get all audit logs for a feature flag
@@ -159,5 +183,17 @@ struct FeatureFlagRepository: FeatureFlagRepositoryProtocol {
         return try await FeatureFlag.query(on: database)
             .filter(\.$organizationId == organizationId)
             .all()
+    }
+    
+    func getAllForOrganization(organizationId: UUID, params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<FeatureFlag> {
+        let query = FeatureFlag.query(on: database)
+            .filter(\.$organizationId == organizationId)
+        return try await PaginationUtilities.paginate(
+            query,
+            params: params,
+            sortBy: \FeatureFlag.$key,
+            direction: .ascending,
+            baseUrl: baseUrl
+        )
     }
 }

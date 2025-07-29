@@ -104,9 +104,9 @@ final class AuthController: RouteCollection, @unchecked Sendable {
             
             // Set the token cookie
             let response = req.redirect(to: "/dashboard")
-            response.cookies["bandera-auth-token"] = HTTPCookies.Value(
+            response.cookies[AppConstants.authCookieName] = HTTPCookies.Value(
                 string: token,
-                expires: Date().addingTimeInterval(7 * 24 * 60 * 60), // 7 days
+                expires: Date().addingTimeInterval(TimeInterval(AppConstants.jwtExpirationDays * 24 * 60 * 60)),
                 domain: nil,
                 path: "/",
                 isSecure: req.application.environment.isRelease,
@@ -200,9 +200,9 @@ final class AuthController: RouteCollection, @unchecked Sendable {
             req.logger.debug("AuthController.login: Signed JWT token for user \(user.email): \(token.prefix(20))...")
             
             // Set the token cookie with detailed debug info
-            response.cookies["bandera-auth-token"] = HTTPCookies.Value(
+            response.cookies[AppConstants.authCookieName] = HTTPCookies.Value(
                 string: token,
-                expires: Date().addingTimeInterval(7 * 24 * 60 * 60),
+                expires: Date().addingTimeInterval(TimeInterval(AppConstants.jwtExpirationDays * 24 * 60 * 60)),
                 domain: nil,
                 path: "/",
                 isSecure: req.application.environment != .development,
@@ -210,7 +210,7 @@ final class AuthController: RouteCollection, @unchecked Sendable {
                 sameSite: .lax
             )
             
-            req.logger.debug("AuthController.login: Set cookie 'bandera-auth-token' with expiry: \(Date().addingTimeInterval(7 * 24 * 60 * 60))")
+            req.logger.debug("AuthController.login: Set cookie '\(AppConstants.authCookieName)' with expiry: \(Date().addingTimeInterval(TimeInterval(AppConstants.jwtExpirationDays * 24 * 60 * 60)))")
             req.logger.debug("AuthController.login: Login process completed successfully")
             
             return response
@@ -236,7 +236,7 @@ final class AuthController: RouteCollection, @unchecked Sendable {
     static func logout(req: Request) async throws -> Response {
         req.session.destroy()
         let response = req.redirect(to: "/login")
-        response.cookies["bandera-auth-token"] = .expired
+        response.cookies[AppConstants.authCookieName] = .expired
         return response
     }
 }

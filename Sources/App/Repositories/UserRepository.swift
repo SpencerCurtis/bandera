@@ -59,10 +59,34 @@ struct UserRepository: UserRepositoryProtocol {
         try await user.delete(on: database)
     }
     
-    /// Get all users
-    /// - Returns: All users in the system
-    func getAllUsers() async throws -> [User] {
-        try await User.query(on: database).all()
+    /// Get all users with pagination (recommended default)
+    /// - Parameters:
+    ///   - params: Pagination parameters
+    ///   - baseUrl: Base URL for pagination links
+    /// - Returns: Paginated users
+    func getAllUsers(params: PaginationParams, baseUrl: String) async throws -> PaginatedResult<User> {
+        let query = User.query(on: database)
+        return try await PaginationUtilities.paginate(
+            query,
+            params: params,
+            sortBy: \User.$email,
+            direction: .ascending,
+            baseUrl: baseUrl
+        )
+    }
+    
+    /// Get ALL users without pagination
+    /// ⚠️ DEPRECATED: Use getAllUsers(params:baseUrl:) instead for better performance
+    /// ⚠️ WARNING: Use only for small, bounded datasets or migrations
+    /// - Returns: All users in the system (use sparingly!)
+    @available(*, deprecated, message: "Use getAllUsers(params:baseUrl:) instead for better performance and safety")
+    func getAllUsersUnpaginated() async throws -> [User] {
+        // Phase 3: Add safety limit
+        let count = try await User.query(on: database).count()
+        guard count <= 1000 else {
+            throw Abort(.payloadTooLarge, reason: "Dataset too large (\(count) users). Use paginated method instead.")
+        }
+        return try await User.query(on: database).all()
     }
     
     func findByEmail(_ email: String) async throws -> User? {

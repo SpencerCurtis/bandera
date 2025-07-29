@@ -6,6 +6,16 @@ import Vapor
 import Redis
 import JWT
 
+// MARK: - Configuration Constants
+
+/// Application configuration constants
+struct AppConstants {
+    static let authCookieName = "bandera-auth-token"
+    static let jwtExpirationDays = 7
+    static let minJWTSecretLength = 32
+    static let minSessionSecretLength = 32
+}
+
 // Define a storage key for test database flag
 private struct TestDatabaseKey: StorageKey {
     typealias Value = Bool
@@ -18,13 +28,20 @@ public func configure(_ app: Application) async throws {
     
     // MARK: - Middleware Configuration
     
-    // Configure JWT with a safe key 
-    let jwtKey = "banderadevelopmentkey123456789"
+    // Configure JWT with environment variable
+    guard let jwtKey = Environment.get("JWT_SECRET") else {
+        app.logger.critical("JWT_SECRET environment variable is required but not set")
+        fatalError("JWT_SECRET environment variable is required. Please check your .env file.")
+    }
     
-    // Use the key directly
+    // Validate JWT key length for security
+    guard jwtKey.count >= AppConstants.minJWTSecretLength else {
+        app.logger.critical("JWT_SECRET must be at least \(AppConstants.minJWTSecretLength) characters long for security")
+        fatalError("JWT_SECRET must be at least \(AppConstants.minJWTSecretLength) characters long for security")
+    }
+    
     app.jwt.signers.use(.hs256(key: jwtKey))
-    
-    app.logger.notice("Configured JWT with key: \(jwtKey.prefix(10))...")
+    app.logger.notice("Configured JWT with environment secret (length: \(jwtKey.count) chars)")
     
     // Configure middleware
     app.middleware = .init()
@@ -39,8 +56,21 @@ public func configure(_ app: Application) async throws {
     app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
     
     // Configure CORS
+    let allowedOrigins: CORSMiddleware.AllowOriginSetting
+    if let corsOrigins = Environment.get("CORS_ALLOWED_ORIGINS") {
+        let origins = corsOrigins.split(separator: ",").map { String($0.trimmingCharacters(in: .whitespaces)) }
+        allowedOrigins = .any(origins)
+        app.logger.notice("CORS configured for origins: \(origins)")
+    } else if app.environment == .development {
+        allowedOrigins = .any(["http://localhost:8080", "http://127.0.0.1:8080"])
+        app.logger.notice("CORS configured for development (localhost)")
+    } else {
+        allowedOrigins = .none
+        app.logger.notice("CORS disabled for production (configure CORS_ALLOWED_ORIGINS)")
+    }
+    
     let corsConfiguration = CORSMiddleware.Configuration(
-        allowedOrigin: .all,
+        allowedOrigin: allowedOrigins,
         allowedMethods: [.GET, .POST, .PUT, .OPTIONS, .DELETE, .PATCH],
         allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith, .userAgent, .accessControlAllowOrigin]
     )
@@ -83,7 +113,9 @@ public func configure(_ app: Application) async throws {
     let useTestDatabase = app.storage[TestDatabaseKey.self] ?? false
     if !useTestDatabase {
         // Configure SQLite database for development and testing
-        app.databases.use(.sqlite(.file("db.sqlite")), as: .sqlite)
+        let databasePath = Environment.get("DATABASE_URL") ?? "db.sqlite"
+        app.databases.use(.sqlite(.file(databasePath)), as: .sqlite)
+        app.logger.notice("Database configured at: \(databasePath)")
     }
 
     // MARK: - Migrations
@@ -100,6 +132,9 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateOrganization())
     app.migrations.add(OrganizationUser.Migration())
     app.migrations.add(AddOrganizationIdToFeatureFlag())
+    
+    // Add performance indexes
+    app.migrations.add(AddPerformanceIndexes())
 
     // Add admin user in non-testing environments
     if app.environment != .testing {

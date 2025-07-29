@@ -331,4 +331,20 @@ rule "Safe server process termination" {
     "Always verify the correct process before termination with `ps -p <PID>`",
     "Document server termination procedures in README.md"
   ]
+}
+
+rule "Action Items Tracking" {
+  description = "Maintain and reference the ACTION_ITEMS.md file for project task management"
+  patterns = [
+    "Check ACTION_ITEMS.md for pending tasks before starting new work",
+    "Update ACTION_ITEMS.md when completing tasks by checking off items",
+    "Reference ACTION_ITEMS.md when discussing project priorities",
+    "Add new items to ACTION_ITEMS.md when identifying technical debt or improvements",
+    "Organize work according to the priority levels defined in ACTION_ITEMS.md",
+    "Update progress tracking percentages when major categories are completed",
+    "Use ACTION_ITEMS.md to guide code review focus areas",
+    "Reference specific action items when making architectural decisions",
+    "Keep ACTION_ITEMS.md updated with current date when making changes",
+    "Break down large action items into smaller, measurable tasks"
+  ]
 } 

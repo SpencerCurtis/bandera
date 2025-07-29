@@ -461,9 +461,15 @@ struct OrganizationWebController: RouteCollection {
         let organization = try await organizationService.get(id: organizationId)
         let orgDTO = organizationService.createOrganizationDTO(from: organization)
         
-        // Get the organization's feature flags
+        // Get the organization's feature flags with pagination
         let featureFlagRepository = req.services.featureFlagRepository
-        let flags = try await featureFlagRepository.getAllForOrganization(organizationId: organizationId)
+        let paginationParams = PaginationParams.from(req)
+        let paginatedFlags = try await featureFlagRepository.getAllForOrganization(
+            organizationId: organizationId,
+            params: paginationParams,
+            baseUrl: req.url.string
+        )
+        let flags = paginatedFlags.data
         
         // Create base context
         let baseContext = BaseViewContext(
@@ -473,12 +479,13 @@ struct OrganizationWebController: RouteCollection {
             user: user
         )
         
-        // Create organization flags context
+        // Create organization flags context with pagination
         let context = OrganizationFlagsViewContext(
             base: baseContext,
             organization: orgDTO,
             isAdmin: isOrgAdmin,
-            flags: flags
+            flags: flags,
+            flagsPagination: paginatedFlags.pagination
         )
         
         return try await req.view.render("organization-flags", context)

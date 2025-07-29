@@ -23,21 +23,33 @@ struct AdminDashboardViewContext: Content {
     /// System health information
     let healthInfo: HealthInfo
     
+    /// Pagination context for users (optional for backward compatibility)
+    let usersPagination: PaginationContext?
+    
+    /// Pagination context for organizations (optional for backward compatibility)
+    let organizationsPagination: PaginationContext?
+    
     /// Initialize with admin dashboard data
     /// - Parameters:
     ///   - base: The base context
     ///   - users: List of all users
     ///   - organizations: List of all organizations
     ///   - healthInfo: System health information
+    ///   - usersPagination: Pagination context for users (optional)
+    ///   - organizationsPagination: Pagination context for organizations (optional)
     init(
         base: BaseViewContext,
         users: [UserResponse],
         organizations: [OrganizationDTO],
-        healthInfo: HealthInfo
+        healthInfo: HealthInfo,
+        usersPagination: PaginationContext? = nil,
+        organizationsPagination: PaginationContext? = nil
     ) {
         self.base = base
         self.users = users
         self.organizations = organizations
         self.healthInfo = healthInfo
+        self.usersPagination = usersPagination
+        self.organizationsPagination = organizationsPagination
     }
 } 

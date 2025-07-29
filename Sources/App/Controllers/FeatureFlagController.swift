@@ -284,8 +284,18 @@ struct FeatureFlagController: RouteCollection {
             
             req.logger.debug("Flag details retrieved: id=\(flag.id), key=\(flag.key)")
             
-            // Get members for user overrides if user is admin
-            let members = user.isAdmin ? try await req.services.userRepository.getAllUsers() : []
+            // Get members for user overrides if user is admin (use pagination to limit results)
+            let members: [User]
+            if user.isAdmin {
+                let paginationParams = PaginationParams(page: 1, perPage: 50) // Limit to first 50 users for dropdown
+                let paginatedUsers = try await req.services.userRepository.getAllUsers(
+                    params: paginationParams,
+                    baseUrl: req.url.string
+                )
+                members = paginatedUsers.data
+            } else {
+                members = []
+            }
             
             // Create base context
             let baseContext = BaseViewContext(
@@ -375,8 +385,18 @@ struct FeatureFlagController: RouteCollection {
         // Get the flag details from the service
         let flag = try await req.services.featureFlagService.getFlagDetails(id: id, userId: user.id!)
         
-        // Get users for the select dropdown (admins only can set for any user)
-        let users = user.isAdmin ? try await req.services.userRepository.getAllUsers() : []
+        // Get users for the select dropdown (admins only can set for any user, limit to 50 for dropdown)
+        let users: [User]
+        if user.isAdmin {
+            let paginationParams = PaginationParams(page: 1, perPage: 50) // Limit to first 50 users for dropdown
+            let paginatedUsers = try await req.services.userRepository.getAllUsers(
+                params: paginationParams,
+                baseUrl: req.url.string
+            )
+            users = paginatedUsers.data
+        } else {
+            users = []
+        }
         
         // Create base context
         let baseContext = BaseViewContext(

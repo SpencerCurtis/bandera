@@ -76,7 +76,7 @@ struct AuthService: AuthServiceProtocol {
     /// - Returns: The generated JWT token
     func generateToken(for user: User) throws -> String {
         // Create payload with standard JWT timestamp format
-        let expirationTime = Date().addingTimeInterval(7 * 86400) // 7 days
+        let expirationTime = Date().addingTimeInterval(TimeInterval(AppConstants.jwtExpirationDays * 86400))
         
         let payload = UserJWTPayload(
             subject: .init(value: user.id!.uuidString),

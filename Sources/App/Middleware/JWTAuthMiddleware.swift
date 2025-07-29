@@ -26,8 +26,8 @@ struct JWTAuthMiddleware: AsyncMiddleware {
         request.logger.debug("JWTAuthMiddleware: Request cookies: \(cookieNames)")
         
         // Check for JWT token in cookie
-        guard let token = request.cookies["bandera-auth-token"]?.string else {
-            request.logger.warning("JWTAuthMiddleware: No 'bandera-auth-token' JWT token found in cookies")
+        guard let token = request.cookies[AppConstants.authCookieName]?.string else {
+            request.logger.warning("JWTAuthMiddleware: No '\(AppConstants.authCookieName)' JWT token found in cookies")
             return try await handleAuthFailure(request)
         }
         
@@ -57,7 +57,7 @@ struct JWTAuthMiddleware: AsyncMiddleware {
                 request.logger.warning("JWTAuthMiddleware: User not found for ID: \(userId)")
                 // Clear the invalid token
                 let response = try await handleAuthFailure(request)
-                response.cookies["bandera-auth-token"] = .expired
+                response.cookies[AppConstants.authCookieName] = .expired
                 return response
             }
             
@@ -85,7 +85,7 @@ struct JWTAuthMiddleware: AsyncMiddleware {
             response.headers.replaceOrAdd(name: .location, value: "/auth/login?error=auth_failed")
             
             // Expire the auth cookie
-            response.cookies["bandera-auth-token"] = .expired
+            response.cookies[AppConstants.authCookieName] = .expired
             
             return response
         }
@@ -100,7 +100,7 @@ struct JWTAuthMiddleware: AsyncMiddleware {
             
             // Create the response and expire the cookie
             let response = request.redirect(to: "/auth/login?returnTo=\(currentPath)")
-            response.cookies["bandera-auth-token"] = .expired
+            response.cookies[AppConstants.authCookieName] = .expired
             
             return response
         } else {
