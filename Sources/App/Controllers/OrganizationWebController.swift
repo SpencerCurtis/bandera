@@ -33,13 +33,8 @@ struct OrganizationWebController: RouteCollection {
         // Get the user's organizations
         let organizations = try await req.services.organizationService.getForUser(userId: user.id!)
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Organizations",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Organizations")
         
         // Create organizations context
         let context = OrganizationsViewContext(
@@ -165,13 +160,8 @@ struct OrganizationWebController: RouteCollection {
         let featureFlagRepository = req.services.featureFlagRepository
         let flags = try await featureFlagRepository.getAllForOrganization(organizationId: organizationId)
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Organization Details",
-            isAuthenticated: true,
-            isAdmin: isOrgAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Organization Details")
         
         // Create organization detail context
         let context = OrganizationDetailViewContext(
@@ -207,12 +197,8 @@ struct OrganizationWebController: RouteCollection {
         }
         
         // Create base context
-        let baseContext = BaseViewContext(
-            title: "Edit Organization",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Edit Organization")
         
         // Create organization form context
         let context = OrganizationEditViewContext(

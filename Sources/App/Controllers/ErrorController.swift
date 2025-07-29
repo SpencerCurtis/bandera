@@ -17,23 +17,14 @@ struct ErrorController: RouteCollection {
         let suggestion = req.session.data["error_suggestion"]
         req.session.data["error_suggestion"] = nil
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Error",
-            isAuthenticated: req.auth.get(UserJWTPayload.self) != nil,
-            isAdmin: req.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
-            user: try? await User.find(UUID(uuidString: req.auth.get(UserJWTPayload.self)?.subject.value ?? ""), on: req.db),
-            errorMessage: message,
-            warningMessage: suggestion
-        )
-        
-        // Create error context
-        let context = ErrorViewContext(
-            base: baseContext,
+        // Use standardized error context creation
+        let error = Abort(.internalServerError, reason: message, suggestedFixes: suggestion != nil ? [suggestion!] : [])
+        let context = await ErrorHandling.createErrorViewContext(
+            for: req,
+            error: error,
             statusCode: 500,
-            reason: message,
-            recoverySuggestion: suggestion,
-            returnTo: true
+            returnTo: true,
+            title: "Error"
         )
         
         return try await req.view.render("error", context)

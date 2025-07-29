@@ -48,13 +48,8 @@ struct AdminController: RouteCollection {
         let userId = UUID(uuidString: payload.subject.value)!
         let user = try await req.services.userRepository.get(id: userId)
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Admin Dashboard",
-            isAuthenticated: true,
-            isAdmin: payload.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Admin Dashboard")
         
         // Get health info from UserService
         let userService = req.services.userService

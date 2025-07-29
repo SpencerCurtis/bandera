@@ -37,13 +37,8 @@ struct FeatureFlagWebController: RouteCollection {
         // Get all flags for the user
         let flags = try await req.services.featureFlagService.getAllFlags(userId: user.id!)
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Feature Flags",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Feature Flags")
         
         // Create context
         let context = FeatureFlagsViewContext(
@@ -84,13 +79,8 @@ struct FeatureFlagWebController: RouteCollection {
                 members = []
             }
             
-            // Create base context
-            let baseContext = BaseViewContext(
-                title: "Feature Flag: \(flag.key)",
-                isAuthenticated: true,
-                isAdmin: user.isAdmin,
-                user: user
-            )
+            // Use standardized base context creation
+            let baseContext = await req.createBaseViewContext(title: "Feature Flag: \(flag.key)")
             
             // Create context based on whether this is a personal or organization flag
             if let orgId = flag.organizationId {
@@ -146,13 +136,8 @@ struct FeatureFlagWebController: RouteCollection {
         // Get the user's organizations
         let organizations = try await req.services.organizationService.getForUser(userId: user.id!)
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Create Feature Flag",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Create Feature Flag")
         
         // Create context for the view with explicit organizations array
         let context = OrganizationFlagFormViewContext(
@@ -180,13 +165,8 @@ struct FeatureFlagWebController: RouteCollection {
         
         req.logger.debug("Flag details retrieved: id=\(flag.id), key=\(flag.key)")
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Edit Feature Flag",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Edit Feature Flag")
         
         // Get the organization if this is an organizational flag
         let organization: OrganizationDTO?
@@ -235,13 +215,8 @@ struct FeatureFlagWebController: RouteCollection {
             users = []
         }
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Add Feature Flag Override",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Add Feature Flag Override")
         
         // Get the organization if this is an organizational flag
         let organization: OrganizationDTO?

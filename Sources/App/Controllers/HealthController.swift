@@ -24,11 +24,8 @@ struct HealthController: RouteCollection {
             ).encodeResponse(for: req)
         }
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "System Health",
-            isAuthenticated: req.auth.get(UserJWTPayload.self) != nil
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "System Health")
         
         // Create health view context
         let context = HealthViewContext(

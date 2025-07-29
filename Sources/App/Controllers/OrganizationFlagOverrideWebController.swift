@@ -52,13 +52,8 @@ struct OrganizationFlagOverrideWebController: RouteCollection {
         // Get organization members for the override form
         let members = try await organizationRepository.getMembers(organizationId: organizationId)
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Add Feature Flag Override",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Add Feature Flag Override")
         
         // Create override form context
         let context = FeatureFlagOverrideFormViewContext(

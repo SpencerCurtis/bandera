@@ -52,13 +52,8 @@ struct OrganizationFlagWebController: RouteCollection {
         )
         let flags = paginatedFlags.data
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "\(organization.name) Feature Flags",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "\(organization.name) Feature Flags")
         
         // Create organization flags context with pagination
         let context = OrganizationFlagsViewContext(
@@ -94,13 +89,8 @@ struct OrganizationFlagWebController: RouteCollection {
         let organization = try await organizationService.get(id: organizationId)
         let orgDTO = organizationService.createOrganizationDTO(from: organization)
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Create Feature Flag",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Create Feature Flag")
         
         // Create context
         let context = OrganizationFlagFormViewContext(
@@ -182,12 +172,8 @@ struct OrganizationFlagWebController: RouteCollection {
         let members = try await organizationRepository.getMembers(organizationId: organizationId)
         
         // Create base context
-        let baseContext = BaseViewContext(
-            title: "Feature Flag: \(flag.key)",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Feature Flag: \(flag.key)")
         
         // Create flag detail context
         let context = FlagDetailViewContext(
@@ -236,13 +222,8 @@ struct OrganizationFlagWebController: RouteCollection {
             throw AuthorizationError.notAuthorized(reason: "This feature flag does not belong to this organization")
         }
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Edit Feature Flag",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Edit Feature Flag")
         
         // Create context
         let context = OrganizationFlagFormViewContext(

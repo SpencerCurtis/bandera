@@ -72,13 +72,8 @@ struct RoutesController: RouteCollection {
             return RoutesViewContext.GroupedRoutes(key: key, value: value)
         }.sorted { $0.key < $1.key }
         
-        // Create base context
-        let baseContext = BaseViewContext(
-            title: "Application Routes",
-            isAuthenticated: true,
-            isAdmin: user.isAdmin,
-            user: user
-        )
+        // Use standardized base context creation
+        let baseContext = await req.createBaseViewContext(title: "Application Routes")
         
         // Create routes context
         let context = RoutesViewContext(

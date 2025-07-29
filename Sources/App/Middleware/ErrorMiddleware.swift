@@ -177,21 +177,14 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
         // Handle 404 errors by showing the 404 page instead of redirecting to login
         if response.status == .notFound {
             do {
-                // Create base context for the 404 page
-                let baseContext = BaseViewContext(
-                    title: "Page Not Found",
-                    isAuthenticated: request.auth.get(UserJWTPayload.self) != nil,
-                    isAdmin: request.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
-                    user: try? await User.find(UUID(uuidString: request.auth.get(UserJWTPayload.self)?.subject.value ?? ""), on: request.db)
-                )
-                
-                // Create error context
-                let context = ErrorViewContext(
-                    base: baseContext,
+                // Use standardized error context creation
+                let error = Abort(.notFound, reason: "The page you're looking for could not be found.", suggestedFixes: ["Please check the URL and try again."])
+                let context = await ErrorHandling.createErrorViewContext(
+                    for: request,
+                    error: error,
                     statusCode: 404,
-                    reason: "The page you're looking for could not be found.",
-                    recoverySuggestion: "Please check the URL and try again.",
-                    returnTo: true
+                    returnTo: true,
+                    title: "Page Not Found"
                 )
                 
                 // Render the 404 page
@@ -212,25 +205,13 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
                 debugInfo = nil
             }
             
-            // Create base context
-            let baseContext = BaseViewContext(
-                title: "Error",
-                isAuthenticated: request.auth.get(UserJWTPayload.self) != nil,
-                isAdmin: request.auth.get(UserJWTPayload.self)?.isAdmin ?? false,
-                user: try? await User.find(UUID(uuidString: request.auth.get(UserJWTPayload.self)?.subject.value ?? ""), on: request.db),
-                errorMessage: reason,
-                warningMessage: suggestion
-            )
-            
-            // Create error context
-            let context = ErrorViewContext(
-                base: baseContext,
+            // Use standardized error context creation
+            let context = await ErrorHandling.createErrorViewContext(
+                for: request,
+                error: error,
                 statusCode: response.status.code,
-                reason: reason,
-                recoverySuggestion: suggestion,
-                requestId: requestId,
-                debugInfo: debugInfo,
-                returnTo: true
+                returnTo: true,
+                title: "Error"
             )
             
             // Render the error page
