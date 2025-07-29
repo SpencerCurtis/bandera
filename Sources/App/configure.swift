@@ -240,8 +240,11 @@ public func configure(_ app: Application) async throws {
         .register(collection: FeatureFlagWebController())
     
     // Organization web routes
-    try dashboard.grouped("organizations")
-        .register(collection: OrganizationWebController())
+    let organizations = dashboard.grouped("organizations")
+    try organizations.register(collection: OrganizationWebController())
+    try organizations.register(collection: OrganizationMemberWebController())
+    try organizations.register(collection: OrganizationFlagWebController())
+    try organizations.register(collection: OrganizationFlagOverrideWebController())
     
     // Admin-only routes
     let admin = web.grouped(JWTAuthMiddleware.admin)
