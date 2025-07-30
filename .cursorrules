@@ -4,15 +4,25 @@
 
 **CRITICAL: NEVER perform git operations without explicit user consent**
 
-### Git Operation Rules
-- **NEVER** run `git add`, `git commit`, `git push`, or any git commands without explicit user permission
+### Git Operation Rules - ULTRA STRICT
+- **NEVER EVER** run `git add`, `git commit`, `git push`, or ANY git commands without EXPLICIT user permission
 - **NEVER** automatically commit changes, even if they seem obvious or small
-- **ALWAYS** ask for permission before any git operation
-- When user says "Let's commit this" or similar commit-indicating phrases:
-  1. Run `git add . && git status` to stage all changed files and see what files changed
-  2. Examine ALL changed files to understand what was modified
-  3. Write a comprehensive commit message that covers ALL changes across ALL files
-  4. Use conventional commit format with clear scope and description
+- **NEVER** assume permission from phrases like "let's commit" or "commit this"
+- **ALWAYS** ask "Should I proceed with the git commands now?" before executing ANY git operation
+- **REQUIRE** explicit confirmation like "yes", "go ahead", or "proceed" before running git commands
+- **EVEN IF** the user says "let's commit everything" - ALWAYS ask for explicit confirmation first
+
+### When user requests git operations:
+1. **FIRST**: Ask "Should I proceed with running `git add .` and `git commit` now?"
+2. **ONLY AFTER** explicit user confirmation: Execute the git commands
+3. Write a comprehensive commit message covering ALL changes
+4. Use conventional commit format with clear scope and description
+
+### Forbidden Automatic Actions:
+- ❌ Running git commands based on implied consent
+- ❌ Assuming "commit" means "run git commands now"
+- ❌ Executing git operations without asking "Should I proceed?"
+- ✅ ALWAYS require explicit "yes" before running git commands
 
 ### Commit Message Format
 - Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, etc.
