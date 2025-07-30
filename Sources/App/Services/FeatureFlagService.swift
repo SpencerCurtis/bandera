@@ -5,8 +5,8 @@ import Fluent
 ///
 /// This service implements the business logic for feature flag operations,
 /// including creating, updating, deleting, and retrieving feature flags.
-/// It uses a repository for data access and a WebSocket service for
-/// broadcasting real-time updates.
+/// It uses a repository for data access, a cache service for performance,
+/// and a WebSocket service for broadcasting real-time updates.
 struct FeatureFlagService: FeatureFlagServiceProtocol {
     /// The repository for feature flag data access
     let repository: FeatureFlagRepositoryProtocol
@@ -14,13 +14,18 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
     /// The WebSocket service for broadcasting events
     let webSocketService: WebSocketServiceProtocol
     
+    /// The cache service for performance optimization
+    let cacheService: CacheServiceProtocol?
+    
     /// Initialize a new feature flag service
     /// - Parameters:
     ///   - repository: The repository for feature flag data access
     ///   - webSocketService: The WebSocket service for broadcasting events
-    init(repository: FeatureFlagRepositoryProtocol, webSocketService: WebSocketServiceProtocol) {
+    ///   - cacheService: The cache service for performance optimization (optional)
+    init(repository: FeatureFlagRepositoryProtocol, webSocketService: WebSocketServiceProtocol, cacheService: CacheServiceProtocol? = nil) {
         self.repository = repository
         self.webSocketService = webSocketService
+        self.cacheService = cacheService
     }
     
     /// Get a feature flag by ID
@@ -31,26 +36,25 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
     /// - Throws: ResourceError if the flag is not found or not accessible
     func getFlag(id: UUID, userId: UUID) async throws -> FeatureFlag {
         return try await withErrorHandling {
+            // Try cache first
+            if let cacheService = cacheService,
+               let cachedFlag = try await cacheService.getFlag(id: id) {
+                // Still need to verify access permissions
+                if await hasAccessToFlag(flag: cachedFlag, userId: userId) {
+                    return cachedFlag
+                }
+            }
+            
+            // Cache miss or access verification failed, get from repository
             guard let flag = try await repository.get(id: id) else {
                 throw ResourceError.notFound("Feature flag with ID \(id)")
             }
             
-            // If this is a personal flag, check if it belongs to this user
-            if flag.organizationId == nil {
-                if flag.$userId.wrappedValue != userId {
-                    throw AuthenticationError.insufficientPermissions
-                }
-            } else {
-                // This is an organization flag, check if user is a member of the organization
-                let isMember = try await OrganizationUser.query(on: repository.database)
-                    .filter(\.$organization.$id == flag.organizationId!)
-                    .filter(\.$user.$id == userId)
-                    .first() != nil
-                    
-                if !isMember {
-                    throw AuthenticationError.insufficientPermissions
-                }
-            }
+            // Verify access permissions
+            try await verifyFlagAccess(flag: flag, userId: userId)
+            
+            // Cache the flag for future requests
+            try await cacheService?.setFlag(flag, expiration: 300)
             
             return flag
         }
@@ -72,7 +76,19 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
     /// - Throws: BanderaError if the operation fails
     func getFlagsWithOverrides(userId: String) async throws -> FeatureFlagsContainer {
         return try await withErrorHandling {
-            try await repository.getFlagsWithOverrides(userId: userId)
+            // Try cache first
+            if let cacheService = cacheService,
+               let cachedContainer = try await cacheService.getFlagsWithOverrides(userId: userId) {
+                return cachedContainer
+            }
+            
+            // Cache miss, get from repository
+            let container = try await repository.getFlagsWithOverrides(userId: userId)
+            
+            // Cache the result with shorter expiration (flag overrides change more frequently)
+            try await cacheService?.setFlagsWithOverrides(userId: userId, container: container, expiration: 120)
+            
+            return container
         }
     }
     
@@ -111,6 +127,12 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
                 userId: userId
             )
             
+            // Invalidate relevant caches
+            try await cacheService?.invalidateUser(userId: userId)
+            if let organizationId = dto.organizationId {
+                try await cacheService?.invalidateOrganization(organizationId: organizationId)
+            }
+            
             // Broadcast the event
             try await broadcastEvent(FeatureFlagEventType.created, flag: flag)
             
@@ -139,6 +161,9 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             flag.update(from: dto)
             try await repository.save(flag)
             
+            // Invalidate caches for this flag
+            try await cacheService?.invalidateFlag(id: id)
+            
             // Broadcast the event
             try await broadcastEvent(FeatureFlagEventType.updated, flag: flag)
             
@@ -158,6 +183,9 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             
             // Delete the flag
             try await repository.delete(flag)
+            
+            // Invalidate caches for this flag
+            try await cacheService?.invalidateFlag(id: id)
             
             // Broadcast the event
             try await broadcastDeleteEvent(id: id, userId: userId)
@@ -269,6 +297,9 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
                 flagId: id,
                 userId: userId
             )
+            
+            // Invalidate caches for this flag
+            try await cacheService?.invalidateFlag(id: id)
             
             // Broadcast the event
             try await broadcastEvent(FeatureFlagEventType.updated, flag: flag)
@@ -508,6 +539,46 @@ struct FeatureFlagService: FeatureFlagServiceProtocol {
             )
             
             return newFlag
+        }
+    }
+    
+    // MARK: - Private Helper Methods
+    
+    /// Verify that a user has access to a feature flag
+    /// - Parameters:
+    ///   - flag: The feature flag to verify access for
+    ///   - userId: The user requesting access
+    /// - Throws: AuthenticationError.insufficientPermissions if access is denied
+    private func verifyFlagAccess(flag: FeatureFlag, userId: UUID) async throws {
+        // If this is a personal flag, check if it belongs to this user
+        if flag.organizationId == nil {
+            if flag.$userId.wrappedValue != userId {
+                throw AuthenticationError.insufficientPermissions
+            }
+        } else {
+            // This is an organization flag, check if user is a member of the organization
+            let isMember = try await OrganizationUser.query(on: repository.database)
+                .filter(\.$organization.$id == flag.organizationId!)
+                .filter(\.$user.$id == userId)
+                .first() != nil
+                
+            if !isMember {
+                throw AuthenticationError.insufficientPermissions
+            }
+        }
+    }
+    
+    /// Check if a user has access to a feature flag (non-throwing version for cached flags)
+    /// - Parameters:
+    ///   - flag: The feature flag to check access for
+    ///   - userId: The user requesting access
+    /// - Returns: true if access is allowed, false otherwise
+    private func hasAccessToFlag(flag: FeatureFlag, userId: UUID) async -> Bool {
+        do {
+            try await verifyFlagAccess(flag: flag, userId: userId)
+            return true
+        } catch {
+            return false
         }
     }
 }

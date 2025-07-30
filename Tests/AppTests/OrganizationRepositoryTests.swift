@@ -110,7 +110,7 @@ final class OrganizationRepositoryTests: XCTestCase {
     
     func testAddUserToOrganization() async throws {
         // Given
-        let user = User(email: "member@example.com", passwordHash: "password", isAdmin: false)
+        let user = User(email: "member-add@example.com", passwordHash: "password", isAdmin: false)
         try await userRepository.save(user)
         
         let organization = Organization(name: "Member Test Org")
@@ -131,7 +131,7 @@ final class OrganizationRepositoryTests: XCTestCase {
     
     func testAddUserToOrganizationAsAdmin() async throws {
         // Given
-        let user = User(email: "admin@example.com", passwordHash: "password", isAdmin: false)
+        let user = User(email: "admin-add@example.com", passwordHash: "password", isAdmin: false)
         try await userRepository.save(user)
         
         let organization = Organization(name: "Admin Test Org")
@@ -217,7 +217,7 @@ final class OrganizationRepositoryTests: XCTestCase {
         // Given
         let user1 = User(email: "member1@example.com", passwordHash: "password", isAdmin: false)
         let user2 = User(email: "member2@example.com", passwordHash: "password", isAdmin: false)
-        let user3 = User(email: "nonmember@example.com", passwordHash: "password", isAdmin: false)
+        let user3 = User(email: "nonmember-members@example.com", passwordHash: "password", isAdmin: false)
         
         try await userRepository.save(user1)
         try await userRepository.save(user2)
@@ -244,7 +244,7 @@ final class OrganizationRepositoryTests: XCTestCase {
     func testIsMemberCheck() async throws {
         // Given
         let user = User(email: "check@example.com", passwordHash: "password", isAdmin: false)
-        let nonMemberUser = User(email: "nonmember@example.com", passwordHash: "password", isAdmin: false)
+        let nonMemberUser = User(email: "nonmember-check@example.com", passwordHash: "password", isAdmin: false)
         try await userRepository.save(user)
         try await userRepository.save(nonMemberUser)
         
@@ -264,8 +264,8 @@ final class OrganizationRepositoryTests: XCTestCase {
     
     func testIsAdminCheck() async throws {
         // Given
-        let adminUser = User(email: "admin@example.com", passwordHash: "password", isAdmin: false)
-        let memberUser = User(email: "member@example.com", passwordHash: "password", isAdmin: false)
+        let adminUser = User(email: "admin-check@example.com", passwordHash: "password", isAdmin: false)
+        let memberUser = User(email: "member-check@example.com", passwordHash: "password", isAdmin: false)
         try await userRepository.save(adminUser)
         try await userRepository.save(memberUser)
         

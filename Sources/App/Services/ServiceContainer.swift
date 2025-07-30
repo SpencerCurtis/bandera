@@ -11,6 +11,7 @@ final class ServiceContainer: @unchecked Sendable {
     var authService: AuthServiceProtocol
     var organizationService: OrganizationServiceProtocol
     var userService: UserServiceProtocol
+    var cacheService: CacheServiceProtocol
     
     /// Initialize with all services and repositories
     /// - Parameters:
@@ -22,6 +23,7 @@ final class ServiceContainer: @unchecked Sendable {
     ///   - authService: The authentication service
     ///   - organizationService: The organization service
     ///   - userService: The user service
+    ///   - cacheService: The cache service
     init(
         webSocketService: WebSocketServiceProtocol,
         featureFlagRepository: FeatureFlagRepositoryProtocol,
@@ -30,7 +32,8 @@ final class ServiceContainer: @unchecked Sendable {
         featureFlagService: FeatureFlagServiceProtocol,
         authService: AuthServiceProtocol,
         organizationService: OrganizationServiceProtocol,
-        userService: UserServiceProtocol
+        userService: UserServiceProtocol,
+        cacheService: CacheServiceProtocol
     ) {
         self.webSocketService = webSocketService
         self.featureFlagRepository = featureFlagRepository
@@ -40,6 +43,7 @@ final class ServiceContainer: @unchecked Sendable {
         self.authService = authService
         self.organizationService = organizationService
         self.userService = userService
+        self.cacheService = cacheService
     }
     
     /// Initialize with the Vapor application
@@ -50,11 +54,16 @@ final class ServiceContainer: @unchecked Sendable {
         let userRepository = UserRepository(database: app.db)
         let organizationRepository = OrganizationRepository(db: app.db)
         
+        // Create cache service
+        let cacheStorage = CacheStorageFactory.create(app: app)
+        let cacheService = CacheService(storage: cacheStorage)
+        
         // Create services
         let webSocketService = WebSocketService()
         let featureFlagService = FeatureFlagService(
             repository: featureFlagRepository,
-            webSocketService: webSocketService
+            webSocketService: webSocketService,
+            cacheService: cacheService
         )
         let authService = AuthService(
             userRepository: userRepository,
@@ -77,7 +86,8 @@ final class ServiceContainer: @unchecked Sendable {
             featureFlagService: featureFlagService,
             authService: authService,
             organizationService: organizationService,
-            userService: userService
+            userService: userService,
+            cacheService: cacheService
         )
     }
 }

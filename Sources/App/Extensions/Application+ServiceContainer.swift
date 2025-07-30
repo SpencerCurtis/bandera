@@ -39,4 +39,9 @@ extension Request {
     func organizationService() throws -> OrganizationServiceProtocol {
         return services.organizationService
     }
+    
+    /// Get the cache service from the service container
+    func cacheService() throws -> CacheServiceProtocol {
+        return services.cacheService
+    }
 }

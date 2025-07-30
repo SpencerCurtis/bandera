@@ -143,22 +143,22 @@ enum TestHelpers {
     /// - Parameter app: The test application
     static func cleanupDatabase(app: Application) async throws {
         // Delete in dependency order to avoid foreign key constraints
-        try await UserFeatureFlag.query(on: app.db).delete()
-        try await FeatureFlag.query(on: app.db).delete()
-        try await OrganizationUser.query(on: app.db).delete()
-        try await Organization.query(on: app.db).delete()
-        try await User.query(on: app.db).delete()
+        // Delete child tables first (tables that reference other tables)
         try await AuditLog.query(on: app.db).delete()
         try await FlagStatus.query(on: app.db).delete()
+        try await UserFeatureFlag.query(on: app.db).delete()
+        try await OrganizationUser.query(on: app.db).delete()
+        
+        // Then delete parent tables (tables that are referenced by others)
+        try await FeatureFlag.query(on: app.db).delete()
+        try await Organization.query(on: app.db).delete()
+        try await User.query(on: app.db).delete()
     }
 }
 
 // MARK: - Test Database Key Extension
 
-/// Storage key for marking that we're using a test database
-private struct TestDatabaseKey: StorageKey {
-    typealias Value = Bool
-}
+// TestDatabaseKey is now defined in configure.swift and imported via @testable import App
 
 // MARK: - XCTestCase Extensions
 

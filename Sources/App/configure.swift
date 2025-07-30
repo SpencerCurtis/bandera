@@ -17,8 +17,8 @@ struct AppConstants {
 }
 
 // Define a storage key for test database flag
-private struct TestDatabaseKey: StorageKey {
-    typealias Value = Bool
+public struct TestDatabaseKey: StorageKey {
+    public typealias Value = Bool
 }
 
 /// Configures the Vapor application.
@@ -176,6 +176,13 @@ public func configure(_ app: Application) async throws {
     
     app.logger.notice("Rate limiting configured - Auth: 5/min, API: 100/min")
     
+    // MARK: - Cache Configuration
+    
+    // Create cache service (Redis if available, otherwise in-memory)
+    let cacheStorage = CacheStorageFactory.create(app: app)
+    let cacheService = CacheService(storage: cacheStorage)
+    app.logger.notice("Feature flag caching configured - Storage: \(app.redis.configuration != nil ? "Redis" : "In-Memory")")
+    
     // MARK: - Service Configuration
     
     // Initialize service container with the application
@@ -200,8 +207,9 @@ public func configure(_ app: Application) async throws {
     let authService = AuthService(userRepository: userRepository, jwtSigner: app.jwt.signers)
     serviceContainer.authService = authService
     
-    let featureFlagService = FeatureFlagService(repository: featureFlagRepository, webSocketService: webSocketService)
+    let featureFlagService = FeatureFlagService(repository: featureFlagRepository, webSocketService: webSocketService, cacheService: cacheService)
     serviceContainer.featureFlagService = featureFlagService
+    serviceContainer.cacheService = cacheService
     
     let organizationService = OrganizationService(
         organizationRepository: organizationRepository,

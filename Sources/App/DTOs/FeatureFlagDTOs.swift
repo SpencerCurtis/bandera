@@ -60,7 +60,7 @@ struct FeatureFlagResponse: Content {
     
     /// Initialize from a feature flag model.
     init(flag: FeatureFlag, value: String? = nil, isOverridden: Bool = false) {
-        self.id = flag.id!
+        self.id = flag.id ?? UUID()
         self.key = flag.key
         self.type = flag.type
         self.value = value ?? flag.defaultValue
