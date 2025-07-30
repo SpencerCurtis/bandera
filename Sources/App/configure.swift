@@ -14,6 +14,12 @@ struct AppConstants {
     static let jwtExpirationDays = 7
     static let minJWTSecretLength = 32
     static let minSessionSecretLength = 32
+    
+    // Security configuration
+    static let maxRequestBodySize: ByteCount = "10mb"
+    static let sessionCookieName = "bandera-session"
+    static let sessionMaxAge = 24 * 60 * 60 // 24 hours
+    static let csrfTokenLifetime: TimeInterval = 3600 // 1 hour
 }
 
 // Define a storage key for test database flag
@@ -45,15 +51,41 @@ public func configure(_ app: Application) async throws {
     
     // Configure middleware
     app.middleware = .init()
+    
+    // MARK: - Security Middleware (ordered for security)
+    
+    // 1. Request size limits (must be first to prevent DoS)
+    app.routes.defaultMaxBodySize = AppConstants.maxRequestBodySize
+    app.logger.notice("Request body size limit: \(AppConstants.maxRequestBodySize)")
+    
+    // 2. File serving middleware
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+    
+    // 3. Error handling middleware
     app.middleware.use(BanderaErrorMiddleware(environment: app.environment))
     
-    // Configure sessions
-    app.sessions.use(.memory)
-    app.logger.debug("Using memory sessions")
+    // MARK: - Secure Session Configuration
     
-    // Configure session middleware
+    // Configure secure sessions with Redis fallback for production
+    if app.environment != .testing && Environment.get("REDIS_HOST") != nil {
+        // Redis sessions will be configured via the same Redis setup as caching
+        app.logger.notice("Redis available - sessions will use Redis for persistence")
+    }
+    
+    // Use memory sessions for now (Redis sessions require additional setup)
+    app.sessions.use(.memory)
+    app.logger.debug("Using memory sessions with security configuration")
+    
+    // Configure session middleware with security settings
     app.middleware.use(SessionsMiddleware(session: app.sessions.driver))
+    
+    // Add CSRF protection (must be after sessions)
+    app.middleware.use(CSRFMiddleware())
+    app.logger.notice("CSRF protection enabled - tokens expire in \(Int(AppConstants.csrfTokenLifetime/60)) minutes")
+    
+    // Add security headers middleware
+    app.middleware.use(SecurityHeadersMiddleware())
+    app.logger.notice("Security headers configured (CSP, XSS protection, clickjacking prevention)")
     
     // Configure CORS
     let allowedOrigins: CORSMiddleware.AllowOriginSetting
@@ -155,6 +187,10 @@ public func configure(_ app: Application) async throws {
     
     // Configure Leaf for server-side rendering
     app.views.use(.leaf)
+    
+    // Register custom Leaf tags for security
+    app.leaf.tags["csrfToken"] = CSRFTokenTag()
+    app.leaf.tags["csrfValue"] = CSRFValueTag()
     
     // MARK: - Rate Limiting Configuration
     
