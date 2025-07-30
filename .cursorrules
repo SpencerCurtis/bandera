@@ -1,350 +1,295 @@
 # Bandera Feature Flag Service - Cursor Rules
 
-# File Organization
-rule "Organize Swift files into appropriate directories" {
-  description = "Keep Swift files organized in the correct directories based on their role"
-  patterns = [
-    "Controllers should be in Sources/App/Controllers/",
-    "Models should be in Sources/App/Models/",
-    "Repositories should be in Sources/App/Repositories/",
-    "Services should be in Sources/App/Services/",
-    "Middleware should be in Sources/App/Middleware/",
-    "DTOs should be in Sources/App/DTOs/",
-    "View templates should be in Resources/Views/",
-    "Tests should be in Tests/AppTests/"
-  ]
-}
+## 🚨 Git Operations - STRICT RULES
 
-# Naming Conventions
-rule "Use consistent naming conventions" {
-  description = "Follow Swift naming conventions and project-specific patterns"
-  patterns = [
-    "Controller names should end with 'Controller'",
-    "Repository names should end with 'Repository'",
-    "Service names should end with 'Service'",
-    "Protocol names for repositories should end with 'RepositoryProtocol'",
-    "Protocol names for services should end with 'ServiceProtocol'",
-    "View template files should use .leaf extension",
-    "Test files should end with 'Tests'"
-  ]
-}
+**CRITICAL: NEVER perform git operations without explicit user consent**
 
-# Code Structure
-rule "Maintain consistent code structure" {
-  description = "Follow consistent patterns for code organization within files"
-  patterns = [
-    "Use MARK comments to separate major sections",
-    "Place protocol conformances in extensions",
-    "Group related properties and methods together",
-    "Place private helpers in a private extension or at the bottom of the file",
-    "Use // MARK: - for section headers"
-  ]
-}
+### Git Operation Rules
+- **NEVER** run `git add`, `git commit`, `git push`, or any git commands without explicit user permission
+- **NEVER** automatically commit changes, even if they seem obvious or small
+- **ALWAYS** ask for permission before any git operation
+- When user says "Let's commit this" or similar commit-indicating phrases:
+  1. Run `git add . && git status` to stage all changed files and see what files changed
+  2. Examine ALL changed files to understand what was modified
+  3. Write a comprehensive commit message that covers ALL changes across ALL files
+  4. Use conventional commit format with clear scope and description
 
-# Error Handling
-rule "Follow error handling patterns" {
-  description = "Use consistent error handling throughout the application"
-  patterns = [
-    "Define custom errors in a dedicated Errors.swift file",
-    "Custom errors should conform to AbortError",
-    "Use async/await for asynchronous error handling",
-    "Include recovery suggestions in error messages",
-    "Log errors appropriately using app.logger"
-  ]
-}
+### Commit Message Format
+- Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, etc.
+- Include multi-line descriptions for complex changes
+- Reference all affected components/files
+- Explain the business value or technical improvement
 
-# Documentation
-rule "Maintain consistent documentation" {
-  description = "Follow documentation standards throughout the codebase"
-  patterns = [
-    "Use /// for documentation comments",
-    "Document all public APIs",
-    "Include parameter descriptions for complex methods",
-    "Add examples for non-obvious usage",
-    "Keep README.md up to date with major changes"
-  ]
-}
+---
 
-# Testing
-rule "Follow testing best practices" {
-  description = "Maintain consistent testing patterns"
-  patterns = [
-    "Test files should mirror the structure of source files",
-    "Use descriptive test names that explain the scenario",
-    "Follow Given/When/Then pattern in test methods",
-    "Use test helpers for common setup code",
-    "Mock external dependencies in tests"
-  ]
-}
+## File Organization
 
-# View Templates
-rule "Maintain consistent view template structure" {
-  description = "Follow patterns for Leaf templates"
-  patterns = [
-    "Use #extend(\"layout\"): with a colon when extending layout",
-    "Use #export(\"title\", \"My Title\") for inline exports",
-    "Use #export(\"content\"): for block content exports",
-    "Only use #export within extend blocks, never #set",
-    "Always close block exports with #endexport",
-    "Always close extends with #endextend",
-    "Use #if(condition): for conditionals with #endif",
-    "Use #for(item in items): for loops with #endfor",
-    "Use #(variableName) for variable interpolation",
-    "Keep template hierarchy consistent with layout.leaf as base",
-    "Place page-specific CSS in a dedicated section",
-    "Use consistent naming for template variables",
-    "Follow BEM naming convention for CSS classes",
-    "Keep templates DRY by using partials"
-  ]
-}
+### Directory Structure
+- **Controllers**: `Sources/App/Controllers/` - All controller files end with `Controller`
+- **Models**: `Sources/App/Models/` - Database entities and business models
+- **Repositories**: `Sources/App/Repositories/` - Data access layer, end with `Repository`
+- **Services**: `Sources/App/Services/` - Business logic layer, end with `Service`
+- **Middleware**: `Sources/App/Middleware/` - Request/response processing
+- **DTOs**: `Sources/App/DTOs/` - Data transfer objects and API models
+- **View Templates**: `Resources/Views/` - Leaf templates with `.leaf` extension
+- **Tests**: `Tests/AppTests/` - All test files end with `Tests`
 
-# Database
-rule "Follow database best practices" {
-  description = "Maintain consistent database patterns"
-  patterns = [
-    "Use migrations for schema changes",
-    "Include down migrations for reversibility",
-    "Use meaningful names for foreign key constraints",
-    "Add indexes for frequently queried fields",
-    "Use soft deletes where appropriate"
-  ]
-}
+---
 
-# API Design
-rule "Maintain consistent API design" {
-  description = "Follow RESTful API design principles"
-  patterns = [
-    "Use plural nouns for resource endpoints",
-    "Follow standard HTTP methods (GET, POST, PUT, DELETE)",
-    "Return appropriate HTTP status codes",
-    "Include error details in response body",
-    "Version APIs appropriately"
-  ]
-}
+## Naming Conventions
 
-# Security
-rule "Follow security best practices" {
-  description = "Maintain consistent security patterns"
-  patterns = [
-    "Use environment variables for sensitive configuration",
-    "Implement rate limiting for public endpoints",
-    "Validate and sanitize user input",
-    "Use secure headers in responses",
-    "Follow principle of least privilege"
-  ]
-}
+### Swift Naming Standards
+- **Controllers**: End with `Controller` (e.g., `AuthController`)
+- **Repositories**: End with `Repository` (e.g., `UserRepository`)
+- **Services**: End with `Service` (e.g., `FeatureFlagService`)
+- **Repository Protocols**: End with `RepositoryProtocol`
+- **Service Protocols**: End with `ServiceProtocol`
+- **View Templates**: Use `.leaf` extension
+- **Test Files**: End with `Tests`
 
-# Performance
-rule "Maintain performance standards" {
-  description = "Follow performance best practices"
-  patterns = [
-    "Use async/await for concurrent operations",
-    "Implement caching where appropriate",
-    "Optimize database queries",
-    "Use pagination for large result sets",
-    "Profile and optimize slow endpoints"
-  ]
-}
+---
 
-# Configuration
-rule "Follow configuration patterns" {
-  description = "Maintain consistent configuration handling"
-  patterns = [
-    "Use environment variables for configuration",
-    "Provide sensible defaults for optional configuration",
-    "Document all configuration options",
-    "Handle missing configuration gracefully",
-    "Use type-safe configuration access"
-  ]
-}
+## Code Structure
 
-# Dependency Management
-rule "Follow dependency management best practices" {
-  description = "Maintain consistent dependency handling"
-  patterns = [
-    "Specify exact versions in Package.swift",
-    "Document third-party dependencies in README",
-    "Keep dependencies up to date",
-    "Minimize number of dependencies",
-    "Use dependency injection"
-  ]
-}
+### File Organization
+- Use `// MARK: - Section Name` for major sections
+- Place protocol conformances in extensions
+- Group related properties and methods together
+- Place private helpers in extensions at bottom of file
+- Order: properties → initializers → public methods → private methods
 
-# Framework and Architecture
-rule "Follow Vapor framework patterns" {
-  description = "Maintain consistent Vapor framework usage throughout the application"
-  patterns = [
-    "Use Vapor's built-in dependency injection via app.services",
-    "Register routes in configure.swift using route collections",
-    "Use Fluent for database operations",
-    "Use Leaf for server-side rendering",
-    "Use Content protocol for request/response models",
-    "Use async/await with Request handlers",
-    "Use Vapor's built-in middleware system",
-    "Use Environment for configuration",
-    "Use app.logger for logging",
-    "Use Vapor's authentication system"
-  ]
-}
+---
 
-rule "Follow Leaf template patterns" {
-  description = "Maintain consistent Leaf template structure and usage"
-  patterns = [
-    "Use #extend(\"layout\"): with a colon when extending layout",
-    "Use #export(\"title\", \"My Title\") for inline exports",
-    "Use #export(\"content\"): for block content exports",
-    "Only use #export within extend blocks, never #set",
-    "Always close block exports with #endexport",
-    "Always close extends with #endextend",
-    "Use #if(condition): for conditionals with #endif",
-    "Use #for(item in items): for loops with #endfor",
-    "Use #(variableName) for variable interpolation",
-    "Keep template hierarchy consistent with layout.leaf as base"
-  ]
-}
+## Error Handling
 
-rule "Follow Fluent ORM patterns" {
-  description = "Maintain consistent database access patterns using Fluent"
-  patterns = [
-    "Use @ID property wrapper for primary keys",
-    "Use @Field for model properties",
-    "Use @Parent/@Children for relationships",
-    "Use @Timestamp for created/updated timestamps",
-    "Use Migrations for schema changes",
-    "Use QueryBuilder for complex queries",
-    "Use Model protocol for database entities",
-    "Use soft deletes with @SoftDelete",
-    "Use ModelMiddleware for model hooks",
-    "Use transaction(_:) for atomic operations"
-  ]
-}
+### Error Management Patterns
+- Define custom errors in dedicated `Errors.swift` files
+- Custom errors must conform to `AbortError`
+- Use `async/await` for asynchronous error handling
+- Include recovery suggestions in error messages
+- Log errors appropriately using `app.logger`
+- Use the centralized `ErrorHandling` utility for consistent error responses
 
-# View Contexts
-rule "Follow view context patterns" {
-  description = "Maintain consistent view context structure throughout the application"
-  patterns = [
-    "Create dedicated view context struct for each Leaf template",
-    "View context structs should be in Sources/App/DTOs/ViewContexts/",
-    "View context names should end with 'ViewContext'",
-    "View contexts should conform to Content protocol",
-    "View contexts should include BaseViewContext for common properties",
-    "View contexts should be named after their corresponding template",
-    "Document all view context properties with /// comments",
-    "Keep view contexts focused on template-specific data",
-    "Use clear property names that match template usage",
-    "Include proper type annotations for all properties",
-    "Provide clear initializers with descriptive parameter names",
-    "Never use generic ViewContext type directly",
-    "Group related properties together within context structs",
-    "Consider making properties optional when they might not always be needed",
-    "Include validation logic in initializers when necessary"
-  ]
-}
+---
 
-rule "Follow view context naming conventions" {
-  description = "Use consistent naming for view contexts and their files"
-  patterns = [
-    "Name view contexts after their template (e.g. 'login.leaf' -> 'LoginViewContext')",
-    "Use PascalCase for view context struct names",
-    "Use camelCase for view context properties",
-    "Name files same as struct with .swift extension",
-    "Group related view contexts in subdirectories if needed",
-    "Use descriptive suffixes for specialized contexts (e.g. 'FormViewContext', 'DetailViewContext')",
-    "Keep naming consistent with route and controller patterns"
-  ]
-}
+## Documentation
 
-rule "Follow view context organization" {
-  description = "Maintain consistent organization of view context code"
-  patterns = [
-    "Place all view contexts in Sources/App/DTOs/ViewContexts/",
-    "One view context per file",
-    "Import only necessary modules",
-    "Document public APIs with /// comments",
-    "Group related properties together",
-    "Place computed properties after stored properties",
-    "Place initializers after properties",
-    "Place helper methods in extensions",
-    "Keep contexts focused and single-purpose",
-    "Consider breaking large contexts into smaller, focused ones"
-  ]
-}
+### Documentation Standards
+- Use `///` for documentation comments
+- Document all public APIs with parameter descriptions
+- Include examples for non-obvious usage patterns
+- Keep `README.md` updated with architectural changes
+- Document configuration options and environment variables
 
-# Application Architecture
-rule "Follow Bandera architectural patterns" {
-  description = "Maintain consistent application architecture specific to Bandera"
-  patterns = [
-    "Use feature flag service for managing flags",
-    "Use WebSocket service for real-time updates",
-    "Use repository pattern for data access",
-    "Use service layer for business logic",
-    "Use DTOs for API requests/responses",
-    "Create dedicated view context for each Leaf template",
-    "Use JWT for authentication",
-    "Use rate limiting for API endpoints",
-    "Use environment-based configuration",
-    "Use health checks for monitoring"
-  ]
-}
+---
 
-rule "Follow feature flag patterns" {
-  description = "Maintain consistent feature flag implementation"
-  patterns = [
-    "Use FeatureFlag model for flag definition",
-    "Use UserFeatureFlag for user overrides",
-    "Use FeatureFlagService for flag operations",
-    "Use WebSocket for real-time flag updates",
-    "Use feature flag events for tracking changes",
-    "Use feature flag caching for performance",
-    "Use typed feature flag values",
-    "Use feature flag validation",
-    "Use feature flag audit logging",
-    "Use feature flag documentation"
-  ]
-}
+## Testing
 
-rule "Follow development workflow best practices" {
-  description = "Maintain consistent development workflow for Bandera project"
-  patterns = [
-    "Use the restart.sh script to restart the application",
-    "Kill existing processes before starting a new one",
-    "Reset passwords with dev commands when needed",
-    "Use development routes for efficient debugging",
-    "Utilize the reset-admin command for admin password issues",
-    "Remember default credentials: admin@example.com / password",
-    "Use pkill -9 App || true to ensure port 8080 is available",
-    "Run pkill -9 App || true && swift run to restart the app in one command",
-    "Check /dev/users to see all available user accounts",
-    "Use reset-password command for any user password issues"
-  ]
-}
+### Testing Best Practices
+- Test files mirror source file structure
+- Use descriptive test names explaining the scenario
+- Follow **Given/When/Then** pattern in test methods
+- Use `TestHelpers` for common setup code
+- Mock external dependencies using protocols
+- Aim for comprehensive test coverage of business logic
 
-rule "Safe server process termination" {
-  description = "Use only PID-based process termination to avoid killing unrelated applications"
-  patterns = [
-    "Always use `lsof -i :<port>` to identify the specific PID of the Vapor server",
-    "Use `kill <PID>` for normal termination of the identified process",
-    "Use `kill -9 <PID>` only when normal termination fails",
-    "Never use generic commands like `pkill App` or `pkill Run` that can terminate multiple apps",
-    "For scripts, store and validate PIDs before terminating processes",
-    "Use process name identification only for PID discovery, never for direct termination",
-    "Always verify the correct process before termination with `ps -p <PID>`",
-    "Document server termination procedures in README.md"
-  ]
-}
+---
 
-rule "Action Items Tracking" {
-  description = "Maintain and reference the ACTION_ITEMS.md file for project task management"
-  patterns = [
-    "Check ACTION_ITEMS.md for pending tasks before starting new work",
-    "Update ACTION_ITEMS.md when completing tasks by checking off items",
-    "Reference ACTION_ITEMS.md when discussing project priorities",
-    "Add new items to ACTION_ITEMS.md when identifying technical debt or improvements",
-    "Organize work according to the priority levels defined in ACTION_ITEMS.md",
-    "Update progress tracking percentages when major categories are completed",
-    "Use ACTION_ITEMS.md to guide code review focus areas",
-    "Reference specific action items when making architectural decisions",
-    "Keep ACTION_ITEMS.md updated with current date when making changes",
-    "Break down large action items into smaller, measurable tasks"
-  ]
-} 
+## View Templates (Leaf)
+
+### Template Structure
+- Always use `#extend("layout"):` with colon for layout extension
+- Use `#export("title", "Page Title")` for inline exports
+- Use `#export("content"):` for block content exports
+- **ONLY** use `#export` within extend blocks, never `#set`
+- Always close block exports with `#endexport`
+- Always close extends with `#endextend`
+- Use `#if(condition):` with `#endif` for conditionals
+- Use `#for(item in items):` with `#endfor` for loops
+- Use `#(variableName)` for variable interpolation
+
+### Template Best Practices
+- Keep template hierarchy consistent with `layout.leaf` as base
+- Place page-specific CSS in dedicated sections
+- Use consistent naming for template variables
+- Follow BEM naming convention for CSS classes
+- Keep templates DRY using partials
+
+---
+
+## Database (Fluent ORM)
+
+### Database Patterns
+- Use `@ID` property wrapper for primary keys
+- Use `@Field` for standard model properties
+- Use `@Parent`/`@Children` for relationships
+- Use `@Timestamp` for created/updated timestamps
+- Use migrations for all schema changes
+- Include down migrations for reversibility
+- Use meaningful names for foreign key constraints
+- Add indexes for frequently queried fields
+- Use soft deletes with `@SoftDelete` where appropriate
+
+### Query Optimization
+- Use `QueryBuilder` for complex queries
+- Use `transaction(_:)` for atomic operations
+- Implement efficient joins to avoid N+1 queries
+- Use eager loading for related data
+
+---
+
+## API Design
+
+### RESTful API Principles
+- Use plural nouns for resource endpoints
+- Follow standard HTTP methods (GET, POST, PUT, DELETE)
+- Return appropriate HTTP status codes
+- Include detailed error information in response body
+- Version APIs appropriately
+- Use consistent request/response formats
+
+---
+
+## Security
+
+### Security Best Practices
+- Use environment variables for sensitive configuration
+- Implement rate limiting for public endpoints
+- Validate and sanitize all user input
+- Use secure headers in all responses
+- Follow principle of least privilege
+- Use JWT for stateless authentication
+- Implement CSRF protection for web forms
+
+---
+
+## Performance
+
+### Performance Standards
+- Use `async/await` for concurrent operations
+- Implement caching where appropriate (Redis with in-memory fallback)
+- Optimize database queries and eliminate N+1 problems
+- Use pagination for large result sets
+- Profile and optimize slow endpoints
+- Monitor cache hit rates and performance metrics
+
+---
+
+## Configuration
+
+### Configuration Management
+- Use environment variables for all configuration
+- Provide sensible defaults for optional settings
+- Document all configuration options in README
+- Handle missing configuration gracefully
+- Use type-safe configuration access patterns
+
+---
+
+## Vapor Framework Patterns
+
+### Framework Usage
+- Use Vapor's built-in dependency injection via `app.services`
+- Register routes in `configure.swift` using route collections
+- Use Fluent for all database operations
+- Use Leaf for server-side rendering
+- Use `Content` protocol for request/response models
+- Use `async/await` with all Request handlers
+- Use Vapor's built-in middleware system
+- Use `Environment` for configuration management
+- Use `app.logger` for all logging operations
+- Use Vapor's authentication system
+
+---
+
+## View Contexts
+
+### View Context Patterns
+- Create dedicated view context struct for each Leaf template
+- Place all view contexts in `Sources/App/DTOs/ViewContexts/`
+- View context names must end with `ViewContext`
+- All view contexts must conform to `Content` protocol
+- Include `BaseViewContext` for common properties
+- Name contexts after their corresponding template
+- Document all properties with `///` comments
+
+### View Context Organization
+- One view context per file
+- Import only necessary modules
+- Group related properties together
+- Place computed properties after stored properties
+- Place initializers after properties
+- Use extensions for helper methods
+- Keep contexts focused and single-purpose
+
+---
+
+## Bandera Architecture
+
+### Application-Specific Patterns
+- Use `FeatureFlagService` for flag management
+- Use `WebSocketService` for real-time updates
+- Use repository pattern for data access abstraction
+- Use service layer for business logic
+- Use DTOs for API requests/responses
+- Create dedicated view contexts for each template
+- Use JWT for authentication
+- Use rate limiting for API protection
+- Use environment-based configuration
+- Implement health checks for monitoring
+
+### Feature Flag Patterns
+- Use `FeatureFlag` model for flag definitions
+- Use `UserFeatureFlag` for user-specific overrides
+- Use `FeatureFlagService` for all flag operations
+- Use WebSocket for real-time flag updates
+- Implement feature flag event tracking
+- Use Redis caching for flag performance
+- Use typed feature flag values
+- Implement flag validation logic
+- Maintain feature flag audit logs
+
+---
+
+## Development Workflow
+
+### Development Best Practices
+- Use `restart.sh` script to restart the application
+- Always kill existing processes before starting new ones
+- Use development commands for debugging (`reset-admin`, `reset-password`)
+- Remember default credentials: `admin@example.com` / `password`
+- Check `/dev/users` to see available user accounts
+- Use safe server termination with PID-based process killing
+
+### Safe Server Management
+- Use `lsof -i :<port>` to identify specific server PID
+- Use `kill <PID>` for normal process termination
+- Use `kill -9 <PID>` only when normal termination fails
+- **NEVER** use generic commands like `pkill App` that can affect other applications
+- Always verify correct process with `ps -p <PID>` before termination
+
+---
+
+## Action Items Management
+
+### Task Tracking
+- Check `ACTION_ITEMS.md` before starting new work
+- Update `ACTION_ITEMS.md` when completing tasks
+- Reference action items when discussing priorities
+- Add new items when identifying technical debt
+- Organize work by priority levels defined in action items
+- Update progress percentages for major completions
+- Keep `ACTION_ITEMS.md` current with today's date
+- Break large items into measurable tasks
+
+---
+
+## Dependency Management
+
+### Dependency Best Practices
+- Specify exact versions in `Package.swift`
+- Document third-party dependencies in README
+- Keep dependencies updated and secure
+- Minimize total number of dependencies
+- Use dependency injection for testability
+- Use protocols for service abstractions 
