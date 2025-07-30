@@ -7,7 +7,7 @@ struct AddOrganizationIdToFeatureFlag: AsyncMigration {
         // and then copy data from the old table
         
         // 1. Create a new table with the new schema
-        try await database.schema("feature_flags_temp")
+        try await database.schema(AppConstants.DatabaseTables.featureFlagsTemp)
             .id()
             .field("key", .string, .required)
             .field("type", .string, .required)
@@ -22,7 +22,7 @@ struct AddOrganizationIdToFeatureFlag: AsyncMigration {
         
         // 2. Copy data from the old table to the new one
         if let sql = database as? SQLDatabase {
-            try await sql.raw("INSERT INTO feature_flags_temp SELECT id, key, type, default_value, description, user_id, NULL as organization_id, created_at, updated_at FROM feature_flags").run()
+            try await sql.raw("INSERT INTO \(unsafeRaw: AppConstants.DatabaseTables.featureFlagsTemp) SELECT id, key, type, default_value, description, user_id, NULL as organization_id, created_at, updated_at FROM \(unsafeRaw: AppConstants.DatabaseTables.featureFlags)").run()
         } else {
             // Fallback for non-SQL databases
             let flags = try await FeatureFlag.query(on: database).all()

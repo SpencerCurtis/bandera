@@ -7,7 +7,7 @@ struct AddUserIdToFeatureFlag: AsyncMigration {
         // and then copy data from the old table
         
         // 1. Create a new table with the new schema
-        try await database.schema("feature_flags_temp")
+        try await database.schema(AppConstants.DatabaseTables.featureFlagsTemp)
             .id()
             .field("key", .string, .required)
             .field("type", .string, .required)
@@ -21,7 +21,7 @@ struct AddUserIdToFeatureFlag: AsyncMigration {
         
         // 2. Copy data from the old table to the new one
         if let sql = database as? SQLDatabase {
-            try await sql.raw("INSERT INTO feature_flags_temp SELECT id, key, type, default_value, description, NULL as user_id, created_at, updated_at FROM feature_flags").run()
+            try await sql.raw("INSERT INTO \(unsafeRaw: AppConstants.DatabaseTables.featureFlagsTemp) SELECT id, key, type, default_value, description, NULL as user_id, created_at, updated_at FROM \(unsafeRaw: AppConstants.DatabaseTables.featureFlags)").run()
         } else {
             // Fallback for non-SQL databases
             let flags = try await FeatureFlag.query(on: database).all()
@@ -58,15 +58,15 @@ struct AddUserIdToFeatureFlag: AsyncMigration {
         
         // 5. Copy data from the temp table to the new one
         if let sql = database as? SQLDatabase {
-            try await sql.raw("INSERT INTO feature_flags SELECT * FROM feature_flags_temp").run()
-            try await sql.raw("DROP TABLE feature_flags_temp").run()
+            try await sql.raw("INSERT INTO \(unsafeRaw: AppConstants.DatabaseTables.featureFlags) SELECT * FROM \(unsafeRaw: AppConstants.DatabaseTables.featureFlagsTemp)").run()
+            try await sql.raw("DROP TABLE \(unsafeRaw: AppConstants.DatabaseTables.featureFlagsTemp)").run()
         } else {
             // This is a simplified approach - in a real app, you'd need to handle this more carefully
             let tempFlags = try await database.query(FeatureFlag.self).all()
             for flag in tempFlags {
                 try await flag.save(on: database)
             }
-            try await database.schema("feature_flags_temp").delete()
+            try await database.schema(AppConstants.DatabaseTables.featureFlagsTemp).delete()
         }
     }
 

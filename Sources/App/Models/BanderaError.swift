@@ -55,16 +55,16 @@ enum NotFoundError: BanderaErrorProtocol {
     var reason: String {
         switch self {
         case .user(let id):
-            return "User with ID \(id) not found"
+            return "\(AppConstants.ErrorMessages.userNotFound) with ID \(id)"
         case .featureFlag(let id):
-            return "Feature flag with ID \(id) not found"
+            return "\(AppConstants.ErrorMessages.featureFlagNotFound) with ID \(id)"
         case .organization(let id):
-            return "Organization with ID \(id) not found"
+            return "\(AppConstants.ErrorMessages.organizationNotFound) with ID \(id)"
         }
     }
     
     var recoverySuggestion: String? {
-        return "Please check the identifier and try again."
+        return AppConstants.ErrorMessages.checkIdentifierAndRetry
     }
     
     var domain: ErrorDomain {

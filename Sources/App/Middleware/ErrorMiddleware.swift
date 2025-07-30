@@ -182,7 +182,7 @@ struct BanderaErrorMiddleware: AsyncMiddleware {
                 let context = await ErrorHandling.createErrorViewContext(
                     for: request,
                     error: error,
-                    statusCode: 404,
+                    statusCode: AppConstants.HTTPStatusCodes.notFound,
                     returnTo: true,
                     title: "Page Not Found"
                 )

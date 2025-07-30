@@ -6,22 +6,6 @@ import Vapor
 import Redis
 import JWT
 
-// MARK: - Configuration Constants
-
-/// Application configuration constants
-struct AppConstants {
-    static let authCookieName = "bandera-auth-token"
-    static let jwtExpirationDays = 7
-    static let minJWTSecretLength = 32
-    static let minSessionSecretLength = 32
-    
-    // Security configuration
-    static let maxRequestBodySize: ByteCount = "10mb"
-    static let sessionCookieName = "bandera-session"
-    static let sessionMaxAge = 24 * 60 * 60 // 24 hours
-    static let csrfTokenLifetime: TimeInterval = 3600 // 1 hour
-}
-
 // Define a storage key for test database flag
 public struct TestDatabaseKey: StorageKey {
     public typealias Value = Bool

@@ -81,13 +81,13 @@ enum ErrorHandling {
         } catch let error as AbortError {
             // Convert AbortError to domain-specific error
             switch error.status.code {
-            case 401:
+            case AppConstants.HTTPStatusCodes.unauthorized:
                 throw AuthenticationError.authenticationRequired
-            case 403:
+            case AppConstants.HTTPStatusCodes.forbidden:
                 throw AuthenticationError.insufficientPermissions
-            case 404:
+            case AppConstants.HTTPStatusCodes.notFound:
                 throw ResourceError.notFound(error.reason)
-            case 409:
+            case AppConstants.HTTPStatusCodes.conflict:
                 throw ResourceError.alreadyExists(error.reason)
             default:
                 throw ValidationError.failed(error.reason)
@@ -123,13 +123,13 @@ enum ErrorHandling {
     /// - Throws: A domain-specific error
     static func handleHTTPError(_ error: AbortError) throws {
         switch error.status.code {
-        case 401:
+        case AppConstants.HTTPStatusCodes.unauthorized:
             throw AuthenticationError.authenticationRequired
-        case 403:
+        case AppConstants.HTTPStatusCodes.forbidden:
             throw AuthenticationError.insufficientPermissions
-        case 404:
+        case AppConstants.HTTPStatusCodes.notFound:
             throw ResourceError.notFound(error.reason)
-        case 429:
+        case AppConstants.HTTPStatusCodes.tooManyRequests:
             throw RateLimitError.tooManyRequests
         default:
             throw error
