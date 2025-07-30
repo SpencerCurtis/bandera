@@ -225,16 +225,7 @@ extension TestHelpers {
         return [UInt8].random(count: 32).base64
     }
     
-    static func generateTestJWT(for user: User, app: Application) throws -> String {
-        let payload = UserJWTPayload(
-            subject: .init(value: user.id!.uuidString),
-            expiration: .init(value: Date().addingTimeInterval(3600)),
-            userId: user.id!,
-            email: user.email,
-            isAdmin: user.isAdmin
-        )
-        return try app.jwt.signers.sign(payload)
-    }
+    // Note: generateTestJWT method is available in TestHelpers.swift
 }
 
 // MARK: - Helper Struct for CSRF Testing

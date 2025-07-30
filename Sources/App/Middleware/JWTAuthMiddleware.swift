@@ -21,22 +21,33 @@ struct JWTAuthMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
         request.logger.debug("JWTAuthMiddleware: Processing request for path \(request.url.path)")
         
-        // Log all cookies for debugging
-        let cookieNames = request.cookies.all.keys.joined(separator: ", ")
-        request.logger.debug("JWTAuthMiddleware: Request cookies: \(cookieNames)")
+        // Try to get JWT token from multiple sources
+        let token: String
+        var authSource: String
         
-        // Check for JWT token in cookie
-        guard let token = request.cookies[AppConstants.authCookieName]?.string else {
-            request.logger.warning("JWTAuthMiddleware: No '\(AppConstants.authCookieName)' JWT token found in cookies")
+        // First, check Authorization header (standard for REST APIs)
+        if let bearerAuth = request.headers.bearerAuthorization {
+            token = bearerAuth.token
+            authSource = "Authorization header"
+            request.logger.debug("JWTAuthMiddleware: Found JWT token in Authorization header: \(token.prefix(20))...")
+        } 
+        // Fall back to cookie (for web UI)
+        else if let cookieToken = request.cookies[AppConstants.authCookieName]?.string {
+            token = cookieToken
+            authSource = "cookie"
+            request.logger.debug("JWTAuthMiddleware: Found JWT token in cookie: \(token.prefix(20))...")
+        }
+        // No token found anywhere
+        else {
+            let cookieNames = request.cookies.all.keys.joined(separator: ", ")
+            request.logger.warning("JWTAuthMiddleware: No JWT token found in Authorization header or '\(AppConstants.authCookieName)' cookie. Available cookies: \(cookieNames)")
             return try await handleAuthFailure(request)
         }
-        
-        request.logger.debug("JWTAuthMiddleware: Found JWT token in cookie: \(token.prefix(20))...")
         
         do {
             // Verify and decode the JWT token
             let payload = try request.application.jwt.signers.verify(token, as: UserJWTPayload.self)
-            request.logger.debug("JWTAuthMiddleware: Successfully verified JWT token with subject: \(payload.subject.value)")
+            request.logger.debug("JWTAuthMiddleware: Successfully verified JWT token from \(authSource) with subject: \(payload.subject.value)")
             
             // If we need admin role, verify it
             if requireAdmin && !payload.isAdmin {
@@ -55,9 +66,11 @@ struct JWTAuthMiddleware: AsyncMiddleware {
             // Try to find the user
             guard let user = try await User.find(userId, on: request.db) else {
                 request.logger.warning("JWTAuthMiddleware: User not found for ID: \(userId)")
-                // Clear the invalid token
+                // Clear the invalid token (only for cookie-based auth)
                 let response = try await handleAuthFailure(request)
-                response.cookies[AppConstants.authCookieName] = .expired
+                if authSource == "cookie" {
+                    response.cookies[AppConstants.authCookieName] = .expired
+                }
                 return response
             }
             
@@ -69,23 +82,24 @@ struct JWTAuthMiddleware: AsyncMiddleware {
             
             request.logger.debug("JWTAuthMiddleware: Authenticated user and payload in auth container")
             
-            // Set session data
+            // Set session data (useful for web requests, harmless for API requests)
             request.session.data["user_id"] = userId.uuidString
             request.session.data["is_admin"] = String(payload.isAdmin)
             request.logger.debug("JWTAuthMiddleware: Set session data: user_id=\(userId.uuidString), is_admin=\(payload.isAdmin)")
             
-            request.logger.debug("JWTAuthMiddleware: Authentication successful, continuing to next responder")
+            request.logger.debug("JWTAuthMiddleware: Authentication successful via \(authSource), continuing to next responder")
             return try await next.respond(to: request)
         } catch {
             // Always log the error
             request.logger.warning("JWTAuthMiddleware: JWT verification failed with error: \(error)")
             
-            // Create a redirect response
-            let response = Response(status: .seeOther)
-            response.headers.replaceOrAdd(name: .location, value: "/auth/login?error=auth_failed")
+            // Handle auth failure with proper response based on request type
+            let response = try await handleAuthFailure(request)
             
-            // Expire the auth cookie
-            response.cookies[AppConstants.authCookieName] = .expired
+            // Only clear cookie for cookie-based auth
+            if authSource == "cookie" {
+                response.cookies[AppConstants.authCookieName] = .expired
+            }
             
             return response
         }
